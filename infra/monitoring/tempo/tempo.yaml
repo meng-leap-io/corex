@@ -1,0 +1,46 @@
+# Corex.dev Tempo Configuration
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 4317
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 48h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    pool:
+      max_workers: 100
+      queue_depth: 10000
+
+querier:
+  max_concurrent_queries: 20
+  search:
+    max_result_limit: 10000
+    external_endpoints: []
+
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: corex
+  storage:
+    path: /var/tempo/generator
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+        send_exemplars: true

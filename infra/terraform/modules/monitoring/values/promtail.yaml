@@ -1,0 +1,42 @@
+config:
+  clients:
+    - url: http://${loki_service}/loki/api/v1/push
+  snippets:
+    pipelineStages:
+      - cri: {}
+      - drop:
+          source: "stream"
+          value: "stderr"
+          olderThan: 24h
+    scrapeConfigs:
+      - job_name: kubernetes-pods
+        pipeline_stages:
+          - cri: {}
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_promtail_io_scrape]
+            action: keep
+            regex: true
+          - action: replace
+            source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            target_label: app
+          - action: replace
+            source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            target_label: component
+          - action: replace
+            source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - action: replace
+            replacement: /var/log/pods/*$1/*/*.log
+            separator: /
+            source_labels:
+              - __meta_kubernetes_pod_uid
+              - __meta_kubernetes_pod_container_name
+            target_label: __path__
+
+tolerations:
+  - effect: NoSchedule
+    operator: Exists
+  - effect: NoExecute
+    operator: Exists

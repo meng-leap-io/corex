@@ -1,142 +1,346 @@
 # Corex.dev Production Docker Compose
-version: "3.9"
+name: corex
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck: &redis-healthcheck
+  healthcheck:
+    test: ["CMD", "redis-cli", "ping"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 10s
 
 services:
-  nginx:
-    build:
-      context: ./docker/nginx
-      dockerfile: Dockerfile
-    container_name: corex-nginx
-    ports:
-      - "80:80"
-      - "443:443"
+  postgres:
+    image: postgres:16-alpine
+    container_name: corex-postgres
+    environment:
+      POSTGRES_DB: corex
+      POSTGRES_USER: corex
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?required}
     volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
-      - ./backend/public:/var/www/backend/public:ro
-      - ./frontend/landing/dist:/var/www/frontend/landing:ro
-      - ./frontend/console/dist:/var/www/frontend/console:ro
-    depends_on:
-      - php
-      - ai-gateway
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U corex -d corex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
     networks:
       - corex-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    container_name: corex-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?required}
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    <<: *redis-healthcheck
+    logging: *default-logging
+    networks:
+      - corex-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
 
   php:
     build:
-      context: ./docker/php
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: app
     container_name: corex-php
-    working_dir: /var/www/backend
     volumes:
-      - ./backend:/var/www/backend
-      - ./docker/php/php.ini:/usr/local/etc/php/php.ini:ro
+      - backend-storage:/var/www/backend/storage
+      - ./docker/php/conf.d/php.ini:/usr/local/etc/php/conf.d/99-custom.ini:ro
+      - ./docker/php/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
     environment:
       APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${APP_KEY}
+      APP_KEY: ${APP_KEY:?required}
       APP_DEBUG: ${APP_DEBUG:-false}
-      DB_CONNECTION: pgsql implícita
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      APP_URL: ${APP_URL}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: corex
+      DB_USERNAME: corex
+      DB_PASSWORD: ${DB_PASSWORD:?required}
       REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+      REDIS_PORT: "6379"
+      JWT_SECRET: ${JWT_SECRET:?required}
+      SESSION_DRIVER: redis
+      CACHE_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_BUCKET: ${AWS_BUCKET}
+      AWS_REGION: ${AWS_REGION}
+      MAIL_MAILER: ${MAIL_MAILER:-smtp}
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_ENCRYPTION: ${MAIL_ENCRYPTION:-tls}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Corex}
+      STRIPE_KEY: ${STRIPE_KEY}
+      STRIPE_SECRET: ${STRIPE_SECRET}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm -t || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    logging: *default-logging
     networks:
       - corex-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
 
   queue:
     build:
-      context: ./docker/php
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: worker
     container_name: corex-queue
-    working_dir: /var/www/backend
-    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
     volumes:
-      - ./backend:/var/www/backend
+      - backend-storage:/var/www/backend/storage
     environment:
       APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${APP_KEY}
+      APP_KEY: ${APP_KEY:?required}
       DB_CONNECTION: pgsql
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: corex
+      DB_USERNAME: corex
+      DB_PASSWORD: ${DB_PASSWORD:?required}
       REDIS_HOST: redis
-      JWT_SECRET: ${JWT_SECRET}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+      REDIS_PORT: "6379"
+      JWT_SECRET: ${JWT_SECRET:?required}
+      SESSION_DRIVER: redis
+      CACHE_DRIVER: redis
+      QUEUE_CONNECTION: redis
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan queue:status || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     depends_on:
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    logging: *default-logging
     networks:
       - corex-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
 
   scheduler:
     build:
-      context: ./docker/php
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: worker
     container_name: corex-scheduler
-    working_dir: /var/www/backend
-    command: php artisan schedule:work
     volumes:
-      - ./backend:/var/www/backend
+      - backend-storage:/var/www/backend/storage
+    command: php artisan schedule:work
     environment:
       APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${APP_KEY}
+      APP_KEY: ${APP_KEY:?required}
       DB_CONNECTION: pgsql
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: corex
+      DB_USERNAME: corex
+      DB_PASSWORD: ${DB_PASSWORD:?required}
       REDIS_HOST: redis
-      JWT_SECRET: ${JWT_SECRET}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+      REDIS_PORT: "6379"
+      JWT_SECRET: ${JWT_SECRET:?required}
     depends_on:
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    logging: *default-logging
     networks:
       - corex-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+        reservations:
+          memory: 64M
 
   ai-gateway:
     build:
-      context: ./ai-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ai-gateway/Dockerfile
+      target: runtime
     container_name: corex-ai-gateway
     environment:
       ENVIRONMENT: ${APP_ENV:-production}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      JWT_SECRET: ${JWT_SECRET:?required}
       REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+      REDIS_PORT: "6379"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SENTRY_DSN: ${SENTRY_DSN}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    logging: *default-logging
+    networks:
+      - corex-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "2.0"
+        reservations:
+          memory: 512M
+
+  certbot:
+    build:
+      context: .
+      dockerfile: docker/nginx/certbot/Dockerfile
+    container_name: corex-certbot
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Certbot container started. Running initial check..."
+        /opt/renew.sh check
+        echo "Certbot ready. Sleeping and watching for renewal..."
+        while true; do
+          /opt/renew.sh renew
+          echo "Next renewal check in 12 hours..."
+          sleep 43200
+        done
+    environment:
+      DOMAINS: "corex.dev,console.corex.dev,api.corex.dev"
+      EMAIL: ${LETSENCRYPT_EMAIL:-admin@corex.dev}
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+      - ./docker/nginx/ssl:/etc/nginx/ssl:cached
+      - ./docker/nginx/certbot/logs:/var/log/letsencrypt
+    logging: *default-logging
     networks:
       - corex-network
     restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    container_name: corex-red
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    container_name: corex-nginx
+    ports:
+      - "80:80"
+      - "443:443"
     volumes:
-      - redis-data:/data
+      - backend-storage:/var/www/backend/storage:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/nginx/includes:/etc/nginx/includes:ro
+      - certbot-www:/var/www/certbot:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ./frontend/landing/dist:/var/www/frontend/landing:ro
+      - ./frontend/console/dist:/var/www/frontend/console:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      php:
+        condition: service_healthy
+      ai-gateway:
+        condition: service_healthy
+      certbot:
+        condition: service_started
+    logging: *default-logging
     networks:
       - corex-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+        reservations:
+          memory: 64M
 
 volumes:
+  postgres-data:
+    driver: local
   redis-data:
+    driver: local
+  backend-storage:
+    driver: local
+  certbot-etc:
+    driver: local
+  certbot-www:
+    driver: local
 
 networks:
   corex-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

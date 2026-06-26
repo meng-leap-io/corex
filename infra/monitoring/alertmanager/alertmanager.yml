@@ -1,0 +1,85 @@
+# Corex.dev Alertmanager Configuration
+route:
+  group_by: ['alertname', 'severity', 'team']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: default
+
+  routes:
+    - match:
+        severity: critical
+      receiver: critical
+      repeat_interval: 1h
+
+    - match:
+        severity: warning
+      receiver: warnings
+      repeat_interval: 6h
+
+    - match:
+        team: ai
+      receiver: ai-team
+
+    - match:
+        team: product
+      receiver: product-team
+
+receivers:
+  - name: default
+    slack_configs:
+      - channel: '#alerts'
+        api_url: '${SLACK_WEBHOOK}'
+        title: '{{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+            *Severity:* {{ .Labels.severity }}
+            *Summary:* {{ .Annotations.summary }}
+            *Description:* {{ .Annotations.description }}
+            *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+        send_resolved: true
+
+  - name: critical
+    slack_configs:
+      - channel: '#critical'
+        api_url: '${SLACK_WEBHOOK}'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+            *Severity:* {{ .Labels.severity }}
+            *Summary:* {{ .Annotations.summary }}
+            *Description:* {{ .Annotations.description }}
+            *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+        send_resolved: true
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_ROUTING_KEY}'
+        severity: critical
+        description: '{{ .GroupLabels.alertname }}'
+
+  - name: warnings
+    slack_configs:
+      - channel: '#alerts'
+        api_url: '${SLACK_WEBHOOK}'
+        title: '⚠️ {{ .GroupLabels.alertname }}'
+        send_resolved: true
+
+  - name: ai-team
+    slack_configs:
+      - channel: '#ai-alerts'
+        api_url: '${SLACK_WEBHOOK}'
+        send_resolved: true
+
+  - name: product-team
+    slack_configs:
+      - channel: '#product-metrics'
+        api_url: '${SLACK_WEBHOOK}'
+        send_resolved: true
+
+inhibit_rules:
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    equal: ['alertname', 'instance']

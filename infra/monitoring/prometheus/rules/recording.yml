@@ -1,0 +1,103 @@
+# Corex.dev Prometheus Recording Rules
+groups:
+  - name: corex_recording_rules
+    interval: 60s
+    rules:
+
+      # ── API / Request Metrics ────────────────────────────────────────
+      - record: job:http_request_duration_seconds:p95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job)
+          )
+
+      - record: job:http_request_duration_seconds:p99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job)
+          )
+
+      - record: job:http_requests_total:rate5m
+        expr: sum(rate(http_requests_total[5m])) by (job, status, method)
+
+      - record: job:error_rate:ratio5m
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) by (job)
+          /
+          sum(rate(http_requests_total[5m])) by (job)
+
+      - record: job:success_rate:ratio5m
+        expr: |
+          sum(rate(http_requests_total{status=~"2.."}[5m])) by (job)
+          /
+          sum(rate(http_requests_total[5m])) by (job)
+
+      # ── AI Provider Metrics ──────────────────────────────────────────
+      - record: provider:ai_request_latency:avg5m
+        expr: avg(rate(ai_request_duration_seconds_sum[5m])) by (provider, model)
+          / avg(rate(ai_request_duration_seconds_count[5m])) by (provider, model)
+
+      - record: provider:ai_cost_per_token:avg
+        expr: avg(ai_cost_per_token) by (provider, model)
+
+      - record: provider:ai_requests_total:rate5m
+        expr: sum(rate(ai_requests_total[5m])) by (provider, model)
+
+      - record: provider:ai_tokens_per_request:avg5m
+        expr: sum(rate(ai_tokens_total[5m])) by (provider, model)
+          / sum(rate(ai_requests_total[5m])) by (provider, model)
+
+      - record: provider:ai_error_rate:ratio5m
+        expr: |
+          sum(rate(ai_request_failures_total[5m])) by (provider)
+          /
+          sum(rate(ai_requests_total[5m])) by (provider)
+
+      # ── Token Usage ──────────────────────────────────────────────────
+      - record: user:ai_token_usage:total24h
+        expr: sum(increase(ai_user_tokens_total[24h])) by (user_id)
+
+      - record: user:ai_cost:total24h
+        expr: sum(increase(ai_user_cost_usd_total[24h])) by (user_id)
+
+      - record: project:ai_cost:total24h
+        expr: sum(increase(ai_project_cost_usd_total[24h])) by (project_id)
+
+      - record: project:ai_tokens:total24h
+        expr: sum(increase(ai_project_tokens_total[24h])) by (project_id)
+
+      # ── Infrastructure ───────────────────────────────────────────────
+      - record: instance:node_cpu_utilization:avg5m
+        expr: 1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) by (instance)
+
+      - record: instance:node_memory_utilization:ratio
+        expr: 1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes
+
+      - record: instance:node_disk_utilization:ratio
+        expr: node_filesystem_avail_bytes / node_filesystem_size_bytes
+
+      # ── Business Metrics ─────────────────────────────────────────────
+      - record: corex:dau:count
+        expr: count(corex_active_users > 0)
+
+      - record: corex:mau:count
+        expr: count(corex_active_users offset 30d > 0)
+
+      - record: corex:new_users:rate24h
+        expr: sum(rate(corex_user_registrations_total[24h]))
+
+      - record: corex:subscription_revenue:total24h
+        expr: sum(increase(corex_subscription_revenue_usd_total[24h])) by (plan)
+
+      - record: corex:conversion_rate:ratio30d
+        expr: |
+          sum(increase(corex_subscription_created_total[30d]))
+          /
+          sum(increase(corex_user_registrations_total[30d]))
+
+      # ── Feature Usage ────────────────────────────────────────────────
+      - record: corex:feature_usage:rate5m
+        expr: sum(rate(corex_feature_usage_total[5m])) by (feature, category)
+
+      - record: corex:feature_usage:unique_users_24h
+        expr: count(corex_feature_usage_total offset 24h > 0) by (feature)

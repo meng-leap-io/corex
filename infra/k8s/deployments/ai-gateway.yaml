@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: corex-ai-gateway
+  namespace: corex
+  labels:
+    app: corex-ai-gateway
+    tier: api
+    app.kubernetes.io/name: corex-ai-gateway
+    app.kubernetes.io/component: gateway
+    app.kubernetes.io/part-of: corex-platform
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: corex-ai-gateway
+  template:
+    metadata:
+      labels:
+        app: corex-ai-gateway
+        tier: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+        rollme: "1"
+    spec:
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: gateway
+          image: ghcr.io/corex/ai-gateway:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          env:
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: corex-config
+                  key: APP_ENV
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: corex-secrets
+                  key: JWT_SECRET
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: corex-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: corex-config
+                  key: REDIS_PORT
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: corex-secrets
+                  key: REDIS_PASSWORD
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: corex-secrets
+                  key: OPENAI_API_KEY
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: corex-secrets
+                  key: ANTHROPIC_API_KEY
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: corex-secrets
+                  key: GROQ_API_KEY
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: corex-secrets
+                  key: DEEPSEEK_API_KEY
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: corex-config
+                  key: LOG_LEVEL
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: corex-secrets
+                  key: SENTRY_DSN
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "2"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3

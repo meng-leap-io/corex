@@ -1,0 +1,216 @@
+# Corex.dev Prometheus Alerting Rules
+groups:
+  - name: corex_alerts
+    interval: 30s
+    rules:
+
+      # ── Service Down Alerts ──────────────────────────────────────────
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "{{ $labels.job }} is down on {{ $labels.instance }}"
+          description: "{{ $labels.job }} target {{ $labels.instance }} has been unreachable for over 1 minute."
+          runbook_url: "https://wiki.corex.dev/runbooks/service-down"
+
+      - alert: HighErrorRate
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m])
+          /
+          rate(http_requests_total[5m])
+          > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "High HTTP 5xx error rate ({{ $value | humanizePercentage }})"
+          description: "Service {{ $labels.job }} has {{ $value | humanizePercentage }} 5xx errors over the last 5 minutes."
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket[5m])
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High p95 latency ({{ $value }}s) on {{ $labels.job }}"
+          description: "P95 response time for {{ $labels.job }} is {{ $value }}s, exceeding 2s threshold."
+
+      # ── AI Gateway Specific ──────────────────────────────────────────
+      - alert: AIProviderFailure
+        expr: |
+          rate(ai_request_failures_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          team: ai
+        annotations:
+          summary: "AI provider {{ $labels.provider }} failing"
+          description: "Provider {{ $labels.provider }} has {{ $value | humanizePercentage }} failure rate."
+
+      - alert: HighAICost
+        expr: |
+          ai_daily_cost_usd > ai_daily_budget_usd * 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: ai
+        annotations:
+          summary: "AI cost alert ({{ $value | humanize }} USD)"
+          description: "Daily AI spend has reached {{ $value | humanize }} USD (80% of budget)."
+
+      - alert: TokenQuotaExceeded
+        expr: |
+          ai_user_token_usage > ai_user_token_limit
+        for: 1m
+        labels:
+          severity: warning
+          team: ai
+        annotations:
+          summary: "User {{ $labels.user_id }} exceeded token quota"
+          description: "User {{ $labels.user_id }} used {{ $value }} tokens (limit {{ $labels.limit }})."
+
+      - alert: CacheHitRateDrop
+        expr: |
+          rate(ai_cache_hits_total[5m])
+          /
+          (rate(ai_cache_hits_total[5m]) + rate(ai_cache_misses_total[5m]))
+          < 0.3
+        for: 10m
+        labels:
+          severity: warning
+          team: ai
+        annotations:
+          summary: "Low cache hit rate ({{ $value | humanizePercentage }})"
+          description: "AI cache hit rate dropped to {{ $value | humanizePercentage }}, may indicate cache stampede."
+
+      # ── Infrastructure ───────────────────────────────────────────────
+      - alert: DiskSpaceLow
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}
+          < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Disk space below 10% on {{ $labels.instance }}"
+          description: "Instance {{ $labels.instance }} has {{ $value | humanizePercentage }} free disk space."
+
+      - alert: HighMemoryUsage
+        expr: |
+          node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes
+          < 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Low memory on {{ $labels.instance }}"
+          description: "Instance {{ $labels.instance }} has only {{ $value | humanizePercentage }} available memory."
+
+      - alert: HighCPUUsage
+        expr: |
+          (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) by (instance))
+          > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "High CPU usage ({{ $value | humanizePercentage }})"
+          description: "CPU usage on {{ $labels.instance }} is {{ $value | humanizePercentage }}."
+
+      # ── Database ─────────────────────────────────────────────────────
+      - alert: PostgresConnectionExhaustion
+        expr: |
+          pg_stat_database_numbackends / pg_settings_max_connections
+          > 0.8
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "PostgreSQL connections at {{ $value | humanizePercentage }}"
+          description: "Database connections at {{ $value | humanizePercentage }} of max_connections."
+
+      - alert: PostgresReplicationLag
+        expr: |
+          pg_replication_lag_seconds > 30
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "PostgreSQL replication lag ({{ $value }}s)"
+          description: "Replication lag is {{ $value }}s, exceeding 30s threshold."
+
+      # ── Redis ────────────────────────────────────────────────────────
+      - alert: RedisMemoryHigh
+        expr: |
+          redis_memory_used_bytes / redis_memory_max_bytes
+          > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Redis memory at {{ $value | humanizePercentage }}"
+          description: "Redis memory usage is {{ $value | humanizePercentage }}."
+
+      - alert: RedisHitRateLow
+        expr: |
+          rate(redis_keyspace_hits_total[5m])
+          /
+          (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))
+          < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Redis cache hit rate low ({{ $value | humanizePercentage }})"
+          description: "Redis hit rate is {{ $value | humanizePercentage }}."
+
+      # ── Business / Platform ──────────────────────────────────────────
+      - alert: NewUserRegistrationDrop
+        expr: |
+          rate(corex_user_registrations_total[24h])
+          < rate(corex_user_registrations_total[24h] offset 7d) * 0.5
+        for: 6h
+        labels:
+          severity: warning
+          team: product
+        annotations:
+          summary: "New user registrations dropped 50% week-over-week"
+          description: "Current 24h registration rate is 50% lower than the same period last week."
+
+      - alert: ActiveUserDrop
+        expr: |
+          corex_active_users
+          < corex_active_users offset 7d * 0.7
+        for: 1h
+        labels:
+          severity: warning
+          team: product
+        annotations:
+          summary: "Active users dropped 30% week-over-week"
+          description: "Current active user count is 30% lower than last week."
+
+      - alert: APIKeyExpiring
+        expr: |
+          corex_api_key_days_until_expiry < 7
+        for: 1h
+        labels:
+          severity: warning
+          team: engineering
+        annotations:
+          summary: "API key {{ $labels.key_name }} expires in {{ $value }} days"
+          description: "API key {{ $labels.key_name }} will expire in {{ $value }} days."

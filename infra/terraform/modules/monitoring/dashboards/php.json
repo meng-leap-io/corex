@@ -1,0 +1,39 @@
+{
+  "title": "Corex PHP Backend",
+  "uid": "corex-php",
+  "version": 1,
+  "tags": ["corex", "php"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "PHP-FPM Pool Status",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [{"expr": "php_fpm_active_processes{environment=\"${environment}\"}", "legendFormat": "active"}]
+    },
+    {
+      "title": "Queue Size",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [{"expr": "laravel_queue_size{environment=\"${environment}\"}", "legendFormat": "{{queue}}"}]
+    },
+    {
+      "title": "DB Connection Pool",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+      "targets": [{"expr": "pg_stat_database_numbackends{environment=\"${environment}\"}", "legendFormat": "{{datname}}"}]
+    },
+    {
+      "title": "Cache Hit Rate",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+      "targets": [{"expr": "rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m])) * 100", "legendFormat": "hit rate %"}]
+    },
+    {
+      "title": "Memory Usage",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+      "targets": [{"expr": "container_memory_working_set_bytes{namespace=\"corex\", container=\"php-fpm\"}", "legendFormat": "{{pod}}"}]
+    }
+  ]
+}

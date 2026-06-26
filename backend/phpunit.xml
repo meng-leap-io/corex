@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         executionOrder="depends,defects"
+         displayDetailsOnPhpUnitDeprecations="true"
+         failOnPhpunitDeprecation="true"
+         failOnEmptyTestSuite="true"
+         failOnWarning="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+        <exclude>
+            <directory>app/Console</directory>
+            <directory>app/Exceptions</directory>
+            <directory>app/Providers</directory>
+            <directory>app/Http/Middleware</directory>
+        </exclude>
+    </source>
+
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_DEBUG" value="true"/>
+        <env name="APP_KEY" value="base64:testkey1234567890123456789012345678901234567890123="/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_HOST" value="localhost"/>
+        <env name="DB_PORT" value="5432"/>
+        <env name="DB_DATABASE" value="corex_test"/>
+        <env name="DB_USERNAME" value="corex"/>
+        <env name="DB_PASSWORD" value="corex_test_pass"/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="SCOUT_DRIVER" value="null"/>
+        <env name="SANCTUM_STATEFUL_DOMAINS" value="localhost"/>
+        <env name="JWT_SECRET" value="test-jwt-secret-key"/>
+    </php>
+
+    <logging>
+        <junit outputFile="reports/junit.xml"/>
+    </logging>
+
+    <coverage>
+        <report>
+            <clover outputFile="reports/clover.xml"/>
+            <html outputDirectory="reports/coverage"/>
+            <text outputFile="reports/coverage.txt"/>
+        </report>
+    </coverage>
+</phpunit>

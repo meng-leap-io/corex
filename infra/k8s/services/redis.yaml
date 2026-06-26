@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: corex-redis
+  namespace: corex
+  labels:
+    app: corex-redis
+    app.kubernetes.io/name: corex-redis
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: corex-platform
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+      name: redis
+  selector:
+    app: corex-redis

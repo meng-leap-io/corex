@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: corex-backend
+  namespace: corex
+  labels:
+    app: corex-backend
+    app.kubernetes.io/name: corex-backend
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: corex-platform
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: 9000
+      protocol: TCP
+      name: fpm
+  selector:
+    app: corex-backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: corex-queue
+  namespace: corex
+  labels:
+    app: corex-queue
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: 9000
+      protocol: TCP
+  selector:
+    app: corex-queue
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: corex-scheduler
+  namespace: corex
+  labels:
+    app: corex-scheduler
+spec:
+  type: ClusterIP
+  selector:
+    app: corex-scheduler

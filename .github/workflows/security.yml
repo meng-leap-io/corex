@@ -1,0 +1,345 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # Every Monday 6 AM
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  TRIVY_VERSION: 0.52.0
+  NODE_VERSION: "22"
+
+jobs:
+  # ── Dependency version updates ──────────────────────────────────────
+  dependabot:
+    name: Dependabot Monitor
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for stale Dependabot PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: 'dependabot/'
+            });
+            for (const pr of prs) {
+              const daysOld = Math.floor((Date.now() - new Date(pr.created_at)) / 86400000);
+              if (daysOld > 14 && !pr.labels.some(l => l.name === 'stale')) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  labels: ['stale', 'auto-reminder']
+                });
+              }
+            }
+            core.notice(`Found ${prs.length} open Dependabot PRs`);
+
+  # ── CodeQL SAST ─────────────────────────────────────────────────────
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - javascript-typescript
+          - python
+          - ruby
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+          config: |
+            paths:
+              - backend
+              - ai-gateway
+            paths-ignore:
+              - '**/vendor/**'
+              - '**/node_modules/**'
+              - '**/.mypy_cache/**'
+              - '**/__pycache__/**'
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          upload: true
+          output: codeql-results
+
+      - name: Upload SARIF
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-${{ matrix.language }}-results
+          path: codeql-results
+          retention-days: 30
+
+  # ── Container Image Scanning (Trivy) ────────────────────────────────
+  trivy:
+    name: Container Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      security-events: write
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerfile:
+          - name: backend
+            path: docker/php/Dockerfile
+            context: .
+            target: app
+          - name: ai-gateway
+            path: ai-gateway/Dockerfile
+            context: ai-gateway
+          - name: nginx
+            path: docker/nginx/Dockerfile
+            context: .
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image for scanning
+        run: |
+          docker build \
+            -f ${{ matrix.dockerfile.path }} \
+            --target ${{ matrix.dockerfile.target }} \
+            -t corex/${{ matrix.dockerfile.name }}:scan \
+            ${{ matrix.dockerfile.context }}
+        env:
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: corex/${{ matrix.dockerfile.name }}:scan
+          format: sarif
+          output: trivy-${{ matrix.dockerfile.name }}.sarif
+          severity: CRITICAL,HIGH
+          vuln-type: os,library
+          ignore-unfixed: true
+          scanners: vuln,secret,misconfig
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.dockerfile.name }}.sarif
+          category: trivy-${{ matrix.dockerfile.name }}
+
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-${{ matrix.dockerfile.name }}-results
+          path: trivy-${{ matrix.dockerfile.name }}.sarif
+          retention-days: 30
+
+  # ── Secret Scanning ─────────────────────────────────────────────────
+  secrets:
+    name: Secret Leak Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true
+        env:
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        with:
+          config-path: .gitleaks.toml
+          scan-type: full
+          report-format: sarif
+          report-path: gitleaks-results.sarif
+
+      - name: Upload Gitleaks results
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-results
+          path: gitleaks-results.sarif
+          retention-days: 30
+
+      - name: Fallback - TruffleHog scan
+        if: ${{ failure() || cancelled() }}
+        uses: trufflesecurity/trufflehog@v3
+        with:
+          extra_args: --only-verified --fail
+
+  # ── Dependency vulnerability audit (PHP) ────────────────────────────
+  composer-audit:
+    name: Composer Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-progress --prefer-dist
+        working-directory: backend
+        env:
+          COMPOSER_AUDIT: false
+
+      - name: Run composer audit
+        run: composer audit --format=table --no-interaction
+        working-directory: backend
+        continue-on-error: true
+
+  # ── Python dependency audit ─────────────────────────────────────────
+  pip-audit:
+    name: Python Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Run pip-audit
+        run: pip-audit -r requirements.txt --desc
+        working-directory: ai-gateway
+        continue-on-error: true
+
+  # ── Infrastructure as Code scanning ─────────────────────────────────
+  iac-scan:
+    name: IaC Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra/
+          framework: terraform,kubernetes,dockerfile
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+          soft_fail: true
+
+      - name: Upload Checkov results
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-results
+          path: checkov-results.sarif
+          retention-days: 30
+
+      - name: Run Kube-bench
+        uses: aquasecurity/kube-bench-action@v0.4.0
+        continue-on-error: true
+
+  # ── License compliance ──────────────────────────────────────────────
+  license:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check license headers
+        uses: apache/skywalking-eyes@v0.6.0
+        continue-on-error: true
+        with:
+          config: .licenserc.yaml
+          mode: check
+
+  # ── Summary & notifications ─────────────────────────────────────────
+  report:
+    name: Security Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ always() }}
+    needs:
+      - codeql
+      - trivy
+      - secrets
+      - composer-audit
+      - pip-audit
+      - iac-scan
+    steps:
+      - name: Check job results
+        run: |
+          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          declare -A JOBS=(
+            ["codeql"]="${{ needs.codeql.result }}"
+            ["trivy"]="${{ needs.trivy.result }}"
+            ["secrets"]="${{ needs.secrets.result }}"
+            ["composer-audit"]="${{ needs.composer-audit.result }}"
+            ["pip-audit"]="${{ needs.pip-audit.result }}"
+            ["iac-scan"]="${{ needs.iac-scan.result }}"
+          )
+
+          FAILURES=0
+          for job in "${!JOBS[@]}"; do
+            result="${JOBS[$job]}"
+            icon="✅"
+            [ "$result" = "failure" ] && icon="❌" && ((FAILURES++))
+            [ "$result" = "cancelled" ] && icon="⏭️"
+            echo "$icon **$job**: $result" >> $GITHUB_STEP_SUMMARY
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Total failures: $FAILURES" >> $GITHUB_STEP_SUMMARY
+          exit 0
+
+      - name: Notify Slack on failure
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: security
+          SLACK_TITLE: "Security scan found issues"
+          SLACK_MESSAGE: "Repository: ${{ github.repository }}\nWorkflow: ${{ github.workflow }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          SLACK_COLOR: danger

@@ -1,0 +1,473 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "backend/**"
+      - "docker/php/**"
+      - "docker/nginx/**"
+      - "docker-compose.yml"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "docker/php/**"
+      - ".github/workflows/backend.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+      rollback:
+        description: "Rollback to previous version"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: backend-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  APP_ENV: production
+  APP_DEBUG: false
+  DB_CONNECTION: pgsql
+  DB_HOST: ${{ secrets.DB_HOST }}
+  DB_PORT: "5432"
+  DB_DATABASE: ${{ secrets.DB_DATABASE }}
+  DB_USERNAME: ${{ secrets.DB_USERNAME }}
+  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  REDIS_HOST: ${{ secrets.REDIS_HOST }}
+  REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+  JWT_SECRET: ${{ secrets.JWT_SECRET }}
+  DOCKER_IMAGE: ghcr.io/${{ github.repository }}/backend
+
+jobs:
+  lint:
+    name: PHP Lint & CS Fixer
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo, pdo_pgsql, mbstring, zip, bcmath
+          tools: composer:v2, cs2pr
+          coverage: none
+
+      - name: Validate composer.json
+        run: composer validate --strict --no-check-all
+        working-directory: backend
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/vendor
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
+        working-directory: backend
+        env:
+          COMPOSER_AUDIT: false
+
+      - name: Run PHP CS Fixer (Laravel Pint)
+        run: vendor/bin/pint --test --format=checkstyle | cs2pr
+        working-directory: backend
+        continue-on-error: true
+
+      - name: PHP syntax check (lint)
+        run: find app config database routes tests -name '*.php' -exec php -l {} \; > /dev/null
+        working-directory: backend
+
+  test:
+    name: PHPUnit Tests
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: corex_test
+          POSTGRES_USER: corex
+          POSTGRES_PASSWORD: corex_test_pass
+        options: >-
+          --health-cmd pg_isready -U corex -d corex_test
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo, pdo_pgsql, mbstring, zip, bcmath, redis
+          tools: composer:v2
+          coverage: xdebug
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/vendor
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --no-progress --prefer-dist
+        working-directory: backend
+        env:
+          COMPOSER_AUDIT: false
+
+      - name: Create environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE: corex_test
+          DB_USERNAME: corex
+          DB_PASSWORD: corex_test_pass
+          REDIS_HOST: localhost
+          REDIS_PASSWORD: ""
+
+      - name: Run migrations
+        run: php artisan migrate --env=testing --force
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE: corex_test
+          DB_USERNAME: corex
+          DB_PASSWORD: corex_test_pass
+
+      - name: Run PHPUnit with coverage
+        run: |
+          mkdir -p reports
+          vendor/bin/phpunit \
+            --coverage-clover reports/clover.xml \
+            --coverage-html reports/coverage \
+            --log-junit reports/junit.xml
+        working-directory: backend
+        env:
+          XDEBUG_MODE: coverage
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE: corex_test
+          DB_USERNAME: corex
+          DB_PASSWORD: corex_test_pass
+          REDIS_HOST: localhost
+          REDIS_PASSWORD: ""
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/reports/
+          retention-days: 30
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/reports/junit.xml
+          retention-days: 14
+
+  security:
+    name: Security Scan
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/vendor
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --no-progress --prefer-dist
+        working-directory: backend
+        env:
+          COMPOSER_AUDIT: false
+
+      - name: Composer audit
+        run: composer audit --format=plain || true
+        working-directory: backend
+
+      - name: Run PHPStan
+        run: |
+          vendor/bin/phpstan analyse \
+            --level max \
+            --no-progress \
+            app/ || true
+        working-directory: backend
+        continue-on-error: true
+
+  docker-build:
+    name: Docker Build & Push
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: ${{ github.event_name != 'pull_request' }}
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push PHP-FPM image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/php/Dockerfile
+          target: app
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            APP_ENV=production
+
+      - name: Build and push Nginx image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/nginx/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/nginx:${{ github.sha }},ghcr.io/${{ github.repository }}/nginx:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: docker-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ github.ref == 'refs/heads/develop' && github.event_name != 'pull_request' }}
+    environment:
+      name: staging
+      url: https://staging.corex.dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name corex-staging --region ${{ secrets.AWS_REGION }}
+
+      - name: Update deployment image
+        run: |
+          kubectl set image deployment/corex-backend \
+            php-fpm=${{ env.DOCKER_IMAGE }}:${{ github.sha }} \
+            -n corex
+          kubectl set image deployment/corex-nginx \
+            nginx=ghcr.io/${{ github.repository }}/nginx:${{ github.sha }} \
+            -n corex
+          kubectl rollout status deployment/corex-backend -n corex --timeout=5m
+          kubectl rollout status deployment/corex-nginx -n corex --timeout=5m
+
+      - name: Run post-deploy migrations
+        run: |
+          kubectl create job --from=cronjob/corex-migrate migrate-${{ github.sha }} -n corex || true
+          kubectl wait --for=condition=complete job/migrate-${{ github.sha }} -n corex --timeout=5m || true
+
+      - name: Verify deployment
+        run: |
+          curl -sf https://staging.corex.dev/health | grep ok
+          curl -sf https://staging.corex.dev/api/health | grep ok
+
+      - name: Notify Slack
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_TITLE: "Backend deployed to staging"
+          SLACK_MESSAGE: "Commit: ${{ github.sha }}\nImage: ${{ env.DOCKER_IMAGE }}:${{ github.sha }}"
+          SLACK_COLOR: good
+
+  deploy-production:
+    name: Deploy to Production
+    needs: docker-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    environment:
+      name: production
+      url: https://corex.dev
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name corex-production --region ${{ secrets.AWS_REGION }}
+
+      - name: Canary deployment (10%)
+        run: |
+          kubectl set image deployment/corex-backend-canary \
+            php-fpm=${{ env.DOCKER_IMAGE }}:${{ github.sha }} \
+            -n corex || true
+          sleep 30
+
+          # Check canary health
+          CANARY_OK=$(curl -sf https://corex.dev/health | grep -c ok || true)
+          if [ "$CANARY_OK" -eq 0 ]; then
+            echo "Canary failed, aborting rollout"
+            kubectl rollout undo deployment/corex-backend-canary -n corex || true
+            exit 1
+          fi
+
+      - name: Full rollout
+        run: |
+          kubectl set image deployment/corex-backend \
+            php-fpm=${{ env.DOCKER_IMAGE }}:${{ github.sha }} \
+            -n corex
+          kubectl set image deployment/corex-queue \
+            queue-worker=${{ env.DOCKER_IMAGE }}:${{ github.sha }} \
+            -n corex || true
+          kubectl set image deployment/corex-scheduler \
+            scheduler=${{ env.DOCKER_IMAGE }}:${{ github.sha }} \
+            -n corex || true
+          kubectl set image deployment/corex-nginx \
+            nginx=ghcr.io/${{ github.repository }}/nginx:${{ github.sha }} \
+            -n corex
+
+      - name: Monitor rollout
+        run: |
+          kubectl rollout status deployment/corex-backend -n corex --timeout=10m
+          kubectl rollout status deployment/corex-nginx -n corex --timeout=5m
+          kubectl rollout status deployment/corex-queue -n corex --timeout=5m
+
+      - name: Run database migrations
+        run: |
+          kubectl create job --from=cronjob/corex-migrate migrate-prod-${{ github.sha }} -n corex || true
+          kubectl wait --for=condition=complete job/migrate-prod-${{ github.sha }} -n corex --timeout=10m || true
+
+      - name: Verify production endpoints
+        run: |
+          ENDPOINTS=(
+            "https://corex.dev/health"
+            "https://api.corex.dev/health"
+            "https://console.corex.dev/health"
+          )
+          for ep in "${ENDPOINTS[@]}"; do
+            curl -sf "$ep" | grep ok || echo "Warning: $ep not healthy"
+          done
+
+      - name: Notify Slack
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_TITLE: "Backend deployed to production"
+          SLACK_MESSAGE: "Commit: ${{ github.sha }}\nImage: ${{ env.DOCKER_IMAGE }}:${{ github.sha }}"
+          SLACK_COLOR: good
+
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ github.event.inputs.rollback == 'true' }}
+    environment:
+      name: ${{ github.event.inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Rollback Kubernetes deployments
+        run: |
+          kubectl rollout undo deployment/corex-backend -n corex
+          kubectl rollout undo deployment/corex-nginx -n corex
+          kubectl rollout undo deployment/corex-queue -n corex || true
+          kubectl rollout status deployment/corex-backend -n corex --timeout=5m
+
+      - name: Notify
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_TITLE: "Rollback completed: ${{ github.event.inputs.environment }}"
+          SLACK_COLOR: danger

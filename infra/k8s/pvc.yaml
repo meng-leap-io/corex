@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: corex-storage
+  namespace: corex
+  labels:
+    app.kubernetes.io/name: corex-storage
+    app.kubernetes.io/part-of: corex-platform
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: corex-redis-data
+  namespace: corex
+  labels:
+    app.kubernetes.io/name: corex-redis-data
+    app.kubernetes.io/part-of: corex-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: corex-postgres-data
+  namespace: corex
+  labels:
+    app.kubernetes.io/name: corex-postgres-data
+    app.kubernetes.io/part-of: corex-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard

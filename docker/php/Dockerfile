@@ -1,43 +1,45 @@
-FROM php:8.3-fpm-alpine
+FROM php:8.3-fpm-alpine AS base
 
-# Install system dependencies and PHP extensions
 RUN apk add --no-cache \
-    libpq-dev \
-    libzip-dev \
-    zip \
-    unzip \
-    git \
-    curl \
-    bash \
-    supervisor \
-    redis 2>/dev/null || true && \  # redis cli optional for debugging
-    \
-    # Install PHP extensions required for Laravel + Supabase
-    docker-php-ext-install \
-        pdo_pgsql \
-        pgsql \
-        zip \
-        opcache \
-        && \
-    docker-php-ext-enable opcache
+    libpq-dev libzip-dev zip unzip git curl bash supervisor \
+    && docker-php-ext-install -j$(nproc) \
+        pdo_pgsql pgsql zip opcache bcmath pcntl \
+    && docker-php-ext-enable opcache bcmath pcntl
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY docker/php/conf.d/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY docker/php/conf.d/php.ini /usr/local/etc/php/conf.d/99-custom.ini
 
-# Set working directory
+FROM composer:latest AS composer-build
+WORKDIR /app
+COPY backend/composer.json backend/composer.lock* /app/
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
+FROM base AS app
 WORKDIR /var/www/backend
 
-# Copy application code
-COPY . .
+COPY --from=composer-build /app/vendor /var/www/backend/vendor
+COPY backend/ /var/www/backend/
 
-# Install dependencies (no dev dependencies in production)
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer dump-autoload --no-dev --optimize \
+    && php artisan event:cache \
+    && php artisan route:cache \
+    && php artisan view:cache \
+    && php artisan config:cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
-# Set permissions for Laravel storage/bootstrap
-RUN chown -R www-data:www-data /var/www/backend/storage /var/www/backend/bootstrap/cache || true && \
-    chmod -R 775 /var/www/backend/storage /var/www/backend/bootstrap/cache 2>/dev/null || true
-
-# Expose PHP-FPM port
+USER www-data
 EXPOSE 9000
-
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD php-fpm -t || exit 1
 CMD ["php-fpm"]
+
+FROM base AS worker
+WORKDIR /var/www/backend
+COPY --from=composer-build /app/vendor /var/www/backend/vendor
+COPY backend/ /var/www/backend/
+RUN chown -R www-data:www-data storage bootstrap/cache
+USER www-data
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD php artisan queue:status || exit 1
+CMD ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]

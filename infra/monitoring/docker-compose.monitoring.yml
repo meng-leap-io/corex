@@ -1,0 +1,256 @@
+# Corex.dev Monitoring Stack
+# Usage: docker compose -f infra/monitoring/docker-compose.monitoring.yml up -d
+
+version: "3.8"
+
+networks:
+  corex-monitoring:
+    name: corex-monitoring
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  loki-wal:
+  loki-rules:
+  alertmanager-data:
+  tempo-data:
+
+services:
+
+  # ── Prometheus ─────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: corex-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --storage.tsdb.retention.size=50GB
+      - --web.console.libraries=/etc/prometheus/console_libraries
+      - --web.console.templates=/etc/prometheus/consoles
+      - --web.enable-lifecycle
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage,otlp-write-receiver
+      - --web.external-url=https://prometheus.corex.dev
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    networks:
+      - corex-monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Grafana ────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: corex-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_DEFAULT_THEME=dark
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_AUTH_BASIC_ENABLED=true
+      - GF_SERVER_ROOT_URL=https://grafana.corex.dev
+      - GF_SERVER_DOMAIN=grafana.corex.dev
+      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards
+      - GF_EXPLORE_ENABLED=true
+      - GF_ALERTING_ENABLED=true
+      - GF_UNIFIED_ALERTING_ENABLED=true
+      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=grafana-clock-panel
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - corex-monitoring
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Loki ───────────────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: corex-loki
+    restart: unless-stopped
+    command:
+      - -config.file=/etc/loki/loki-config.yaml
+      - -config.expand-env=true
+    ports:
+      - "3100:3100"
+      - "9096:9096"
+    volumes:
+      - ./loki:/etc/loki
+      - loki-data:/loki/data
+      - loki-wal:/loki/wal
+      - loki-rules:/loki/rules
+    networks:
+      - corex-monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3100/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Promtail ───────────────────────────────────────────────────────
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: corex-promtail
+    restart: unless-stopped
+    command:
+      - -config.file=/etc/promtail/promtail-config.yaml
+    volumes:
+      - ./loki/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - corex-monitoring
+    depends_on:
+      loki:
+        condition: service_healthy
+
+  # ── Tempo (Distributed Tracing) ────────────────────────────────────
+  tempo:
+    image: grafana/tempo:2.5.0
+    container_name: corex-tempo
+    restart: unless-stopped
+    command:
+      - -config.file=/etc/tempo/tempo.yaml
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    networks:
+      - corex-monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3200/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Alertmanager ───────────────────────────────────────────────────
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: corex-alertmanager
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --web.external-url=https://alertmanager.corex.dev
+    ports:
+      - "9093:9093"
+      - "9094:9094"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    networks:
+      - corex-monitoring
+    depends_on:
+      prometheus:
+        condition: service_healthy
+
+  # ── PostgreSQL Exporter ────────────────────────────────────────────
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: corex-postgres-exporter
+    restart: unless-stopped
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}?sslmode=disable
+    ports:
+      - "9187:9187"
+    networks:
+      - corex-monitoring
+    depends_on:
+      prometheus:
+        condition: service_healthy
+
+  # ── Redis Exporter ─────────────────────────────────────────────────
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.61.0
+    container_name: corex-redis-exporter
+    restart: unless-stopped
+    environment:
+      - REDIS_ADDR=redis://${REDIS_HOST}:${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    ports:
+      - "9121:9121"
+    networks:
+      - corex-monitoring
+    depends_on:
+      prometheus:
+        condition: service_healthy
+
+  # ── Node Exporter ──────────────────────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: corex-node-exporter
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    pid: host
+    ports:
+      - "9100:9100"
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - corex-monitoring
+
+  # ── Blackbox Exporter ──────────────────────────────────────────────
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: corex-blackbox-exporter
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    networks:
+      - corex-monitoring
+
+  # ── cAdvisor ───────────────────────────────────────────────────────
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: corex-cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    networks:
+      - corex-monitoring

@@ -1,0 +1,100 @@
+# Corex.dev Loki Log-Based Alerting Rules
+groups:
+  - name: corex_log_alerts
+    interval: 1m
+    rules:
+      - alert: HighErrorLogRate
+        expr: |
+          sum(rate({job=~"ai-gateway|php-backend"} |= "error" [5m])) by (job)
+          > 10
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "High error log rate on {{ $labels.job }}"
+          description: "{{ $labels.job }} is logging >10 errors/minute for 2 minutes."
+
+      - alert: ExceptionSpike
+        expr: |
+          sum(rate({job=~"ai-gateway|php-backend"} |= "exception" [5m])) by (job)
+          > 5
+        for: 3m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Exception spike on {{ $labels.job }}"
+          description: "{{ $labels.job }} has >5 exceptions/minute for 3 minutes."
+
+      - alert: AuthFailureBurst
+        expr: |
+          sum(rate({job="nginx-access"} |= "401" OR |= "403" [5m])) by (host)
+          > 50
+        for: 1m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Auth failure burst on {{ $labels.host }}"
+          description: "{{ $labels.host }} saw >50 auth failures in 1 minute — possible brute force."
+
+      - alert: SlowRequestsDetected
+        expr: |
+          sum(rate({job="nginx-access"} | regexp "(?P<request_time>\\d+\\.\\d+)" | request_time > 10.0 [5m])) by (path)
+          > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Slow requests on {{ $labels.path }}"
+          description: "{{ $labels.path }} has >5 requests taking >10s in 5 minutes."
+
+      - alert: PHPOutOfMemory
+        expr: |
+          count_over_time({job="php-backend"} |= "Allowed memory size" [5m])
+          > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "PHP out of memory error"
+          description: "PHP process ran out of allocated memory."
+
+      - alert: DatabaseConnectionErrors
+        expr: |
+          count_over_time({job=~"ai-gateway|php-backend"} |= "SQLSTATE" OR |= "connection refused" OR |= "could not connect" [5m])
+          > 3
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Database connection errors"
+          description: "Multiple database connection failures detected in logs."
+
+      - alert: QueueWorkerStopped
+        expr: |
+          count_over_time({job="php-backend"} |= "queue:worker" |= "stopped" [5m])
+          > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Queue worker stopped"
+          description: "A queue worker process has stopped unexpectedly."
+
+      - alert: SSLExpiryWarning
+        expr: |
+          count_over_time({job="nginx-error"} |= "SSL" |= "expir" [24h])
+          > 0
+        for: 1h
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "SSL certificate expiry detected in logs"
+          description: "Nginx reported SSL certificate expiry issues in the last 24 hours."

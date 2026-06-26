@@ -1,0 +1,246 @@
+{
+  "__inputs": [],
+  "__requires": [
+    {"type": "datasource", "id": "prometheus", "name": "Prometheus"}
+  ],
+  "title": "Business Metrics",
+  "uid": "corex-business-metrics",
+  "tags": ["corex", "business", "product"],
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "editable": false,
+  "refresh": "5m",
+  "time": {"from": "now-30d", "to": "now"},
+  "timepicker": {
+    "refresh_intervals": ["1m", "5m", "15m", "30m", "1h", "6h", "24h"]
+  },
+  "templating": {
+    "list": [
+      {"type": "interval", "name": "interval", "query": "1h,6h,24h,7d", "current": {"text": "24h", "value": "24h"}, "refresh": 2},
+      {"type": "datasource", "name": "DS_PROMETHEUS", "query": "prometheus", "current": {"text": "Prometheus", "value": "prometheus"}}
+    ]
+  },
+  "panels": [
+    {
+      "title": "Monthly Recurring Revenue",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 5},
+      "targets": [
+        {"expr": "corex_mrr_usd"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {"mode": "fixed", "fixedColor": "green"}
+        }
+      }
+    },
+    {
+      "title": "Active Subscriptions",
+      "type": "stat",
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 5},
+      "targets": [
+        {"expr": "corex_active_subscriptions"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {"mode": "fixed", "fixedColor": "blue"}
+        }
+      }
+    },
+    {
+      "title": "Conversion Rate (30d)",
+      "type": "stat",
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 5},
+      "targets": [
+        {"expr": "corex:conversion_rate:ratio30d * 100"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 3},
+              {"color": "green", "value": 5}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Churn Rate (30d)",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 0, "w": 4, "h": 5},
+      "targets": [
+        {"expr": "corex_churn_rate_30d * 100"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 10}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Avg Revenue Per User",
+      "type": "stat",
+      "gridPos": {"x": 16, "y": 0, "w": 4, "h": 5},
+      "targets": [
+        {"expr": "corex_mrr_usd / corex_active_subscriptions"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {"mode": "fixed", "fixedColor": "purple"}
+        }
+      }
+    },
+    {
+      "title": "Customer Lifetime Value",
+      "type": "stat",
+      "gridPos": {"x": 20, "y": 0, "w": 4, "h": 5},
+      "targets": [
+        {"expr": "corex_ltv_usd"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {"mode": "fixed", "fixedColor": "orange"}
+        }
+      }
+    },
+    {
+      "title": "Revenue Over Time",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 5, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(increase(corex_subscription_revenue_usd_total[$interval])) by (plan)",
+          "legendFormat": "{{ plan }}",
+          "interval": "$interval"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        }
+      }
+    },
+    {
+      "title": "New vs Churned Subscribers",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 5, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "rate(corex_subscription_created_total[$interval])",
+          "legendFormat": "new"
+        },
+        {
+          "expr": "rate(corex_subscription_cancelled_total[$interval])",
+          "legendFormat": "churned"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
+    },
+    {
+      "title": "Total Code Generations",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 13, "w": 8, "h": 8},
+      "targets": [
+        {
+          "expr": "rate(corex_code_generations_total[$interval])",
+          "legendFormat": "generations",
+          "interval": "$interval"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
+    },
+    {
+      "title": "Feature Usage Heatmap",
+      "type": "heatmap",
+      "gridPos": {"x": 8, "y": 13, "w": 16, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(corex_feature_usage_total[1h])) by (feature)",
+          "legendFormat": "{{ feature }}",
+          "interval": "1h"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {}
+      }
+    },
+    {
+      "title": "Projects Created",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 21, "w": 8, "h": 8},
+      "targets": [
+        {
+          "expr": "rate(corex_projects_created_total[$interval])",
+          "legendFormat": "projects",
+          "interval": "$interval"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
+    },
+    {
+      "title": "Plan Distribution",
+      "type": "piechart",
+      "gridPos": {"x": 8, "y": 21, "w": 8, "h": 8},
+      "targets": [
+        {
+          "expr": "corex_users_by_plan",
+          "legendFormat": "{{ plan }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {}
+      }
+    },
+    {
+      "title": "Key Business KPIs",
+      "type": "table",
+      "gridPos": {"x": 16, "y": 21, "w": 8, "h": 8},
+      "targets": [
+        {
+          "expr": "corex_kpi_metrics",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"align": "left"}
+        }
+      },
+      "transformations": [
+        {"id": "organize", "options": {"excludeByName": {}, "indexByName": {}, "renameByName": {"metric": "Metric", "current": "Current", "previous": "Previous", "change": "Change %"}}}
+      ]
+    }
+  ]
+}

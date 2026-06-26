@@ -1,0 +1,344 @@
+name: AI Gateway CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "ai-gateway/**"
+      - ".github/workflows/ai-gateway.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "ai-gateway/**"
+      - ".github/workflows/ai-gateway.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+      rollback:
+        description: "Rollback to previous version"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ai-gateway-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  DOCKER_IMAGE: ghcr.io/${{ github.repository }}/ai-gateway
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: Python Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ai-gateway/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black mypy isort
+          pip install -r requirements.txt
+        working-directory: ai-gateway
+
+      - name: Cache mypy
+        uses: actions/cache@v4
+        with:
+          path: ai-gateway/.mypy_cache
+          key: mypy-${{ hashFiles('ai-gateway/**/*.py') }}
+
+      - name: Check formatting (black)
+        run: black --check --diff --line-length=100 app/ tests/
+        working-directory: ai-gateway
+
+      - name: Check import order (isort)
+        run: isort --check-only --diff --profile black app/ tests/
+        working-directory: ai-gateway
+
+      - name: Lint with flake8
+        run: |
+          flake8 app/ tests/ \
+            --max-line-length=100 \
+            --extend-ignore=E203,W503 \
+            --statistics
+        working-directory: ai-gateway
+
+      - name: Type check with mypy
+        run: |
+          mypy app/ \
+            --ignore-missing-imports \
+            --strict-optional \
+            --warn-unused-configs \
+            --warn-redundant-casts \
+            --warn-unused-ignores
+        working-directory: ai-gateway
+        continue-on-error: true
+
+  test:
+    name: Pytest with Coverage
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ai-gateway/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov httpx
+          pip install -r requirements.txt
+        working-directory: ai-gateway
+
+      - name: Run pytest with coverage
+        run: |
+          mkdir -p reports
+          python -m pytest \
+            --asyncio-mode=auto \
+            --cov=app \
+            --cov-report=xml:reports/coverage.xml \
+            --cov-report=html:reports/htmlcov \
+            --cov-report=term-missing \
+            --junitxml=reports/junit.xml \
+            -v \
+            --timeout=30
+        working-directory: ai-gateway
+        env:
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_DB: 1
+          REDIS_PASSWORD: ""
+          ENVIRONMENT: testing
+          OPENAI_API_KEY: test-key
+          ANTHROPIC_API_KEY: test-key
+          LOG_LEVEL: WARNING
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-gateway-coverage
+          path: ai-gateway/reports/
+          retention-days: 30
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-gateway-test-results
+          path: ai-gateway/reports/junit.xml
+          retention-days: 14
+
+  docker-build:
+    name: Docker Build & Push
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: ${{ github.event_name != 'pull_request' }}
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ai-gateway
+          file: ai-gateway/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            ENVIRONMENT=production
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: docker-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ github.ref == 'refs/heads/develop' && github.event_name != 'pull_request' }}
+    environment:
+      name: staging
+      url: https://api-staging.corex.dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name corex-staging --region ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to staging
+        run: |
+          kubectl set image deployment/corex-ai-gateway \
+            ai-gateway=${{ env.DOCKER_IMAGE }}:${{ github.sha }} \
+            -n corex
+          kubectl rollout status deployment/corex-ai-gateway -n corex --timeout=5m
+
+      - name: Verify
+        run: |
+          curl -sf https://api-staging.corex.dev/health | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('status')=='healthy'"
+          curl -sf https://api-staging.corex.dev/models | python3 -c "import sys,json; d=json.load(sys.stdin); assert len(d)>0"
+
+      - name: Notify
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_TITLE: "AI Gateway deployed to staging"
+          SLACK_MESSAGE: "Commit: ${{ github.sha }}\nImage: ${{ env.DOCKER_IMAGE }}:${{ github.sha }}"
+          SLACK_COLOR: good
+
+  deploy-production:
+    name: Deploy to Production
+    needs: docker-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    environment:
+      name: production
+      url: https://api.corex.dev
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name corex-production --region ${{ secrets.AWS_REGION }}
+
+      - name: Blue-green deployment
+        run: |
+          COLOR=$(kubectl get deployment corex-ai-gateway -n corex -o jsonpath='{.spec.template.metadata.labels.color}' || echo "blue")
+          NEW_COLOR=$([ "$COLOR" = "blue" ] && echo "green" || echo "blue")
+
+          # Deploy new version
+          kubectl set image deployment/corex-ai-gateway-$NEW_COLOR \
+            ai-gateway=${{ env.DOCKER_IMAGE }}:${{ github.sha }} \
+            -n corex || true
+
+          # Create new deployment if it doesn't exist
+          kubectl apply -f infra/k8s/deployments/ai-gateway.yaml -n corex || true
+          kubectl patch deployment corex-ai-gateway -n corex -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"color\":\"$NEW_COLOR\"}}}}}"
+
+          sleep 30
+
+          # Verify new version
+          kubectl rollout status deployment/corex-ai-gateway -n corex --timeout=10m
+
+          # Health check through service (load balancer)
+          curl -sf https://api.corex.dev/health | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('status')=='healthy'"
+
+      - name: Run database migrations (if any)
+        run: |
+          kubectl exec deployment/corex-ai-gateway -n corex -- \
+            python -m app.core.migration --check || true
+
+      - name: Notify
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_TITLE: "AI Gateway deployed to production"
+          SLACK_MESSAGE: "Commit: ${{ github.sha }}\nImage: ${{ env.DOCKER_IMAGE }}:${{ github.sha }}"
+          SLACK_COLOR: good
+
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ github.event.inputs.rollback == 'true' }}
+    environment:
+      name: ${{ github.event.inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Rollback
+        run: |
+          kubectl rollout undo deployment/corex-ai-gateway -n corex
+          kubectl rollout status deployment/corex-ai-gateway -n corex --timeout=5m
+
+      - name: Notify
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_TITLE: "AI Gateway rollback: ${{ github.event.inputs.environment }}"
+          SLACK_COLOR: danger
