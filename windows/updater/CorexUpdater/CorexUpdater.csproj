@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>CorexUpdater</AssemblyName>
+    <RootNamespace>CorexUpdater</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+    <ApplicationIcon>..\..\resources\icon.ico</ApplicationIcon>
+    <Description>Corex Desktop Auto-Updater</Description>
+    <Company>Corex.dev</Company>
+    <Product>Corex Updater</Product>
+    <Copyright>Copyright 2026 Corex.dev</Copyright>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>embedded</DebugType>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <SuppressNETFrameworkSdkPreviewMessage>true</SuppressNETFrameworkSdkPreviewMessage>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Optimize>true</Optimize>
+    <DebugSymbols>false</DebugSymbols>
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>false</DelaySign>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
+    <PackageReference Include="System.IO.Compression" Version="4.3.0" />
+    <PackageReference Include="System.Text.Json" Version="8.0.4" />
+  </ItemGroup>
+</Project>

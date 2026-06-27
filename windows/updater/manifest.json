@@ -1,0 +1,120 @@
+{
+  "name": "Corex",
+  "version": "1.0.0",
+  "build": 100,
+  "channel": "stable",
+  "releaseDate": "2026-06-27T12:00:00Z",
+  "minimumVersion": "0.9.0",
+  "minimumBuild": 50,
+  "updateUrl": "https://updates.corex.dev/v1",
+  "signatureUrl": "https://updates.corex.dev/v1/signature/1.0.0",
+  "signature": "",
+  "checksum": "",
+  "checksumAlgorithm": "SHA-256",
+  "size": 0,
+  "mandatory": false,
+  "mandatoryVersion": "",
+  "releaseNotes": "https://updates.corex.dev/v1/changelog/1.0.0",
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "title": "Initial Release",
+      "date": "2026-06-27",
+      "type": "major",
+      "features": [
+        "Windows desktop application",
+        "AI-powered development platform",
+        "Local Ollama integration",
+        "Native Windows services"
+      ],
+      "bugfixes": [
+        "Fixed path length issues on Windows",
+        "Fixed service startup timeout"
+      ],
+      "breaking": [],
+      "notes": "First stable release for Windows desktop."
+    }
+  ],
+  "files": [
+    {
+      "path": "backend/app/Services/Windows/ThemeService.php",
+      "checksum": "a1b2c3d4e5f6...",
+      "size": 4215,
+      "mode": "replace"
+    },
+    {
+      "path": "electron/main.js",
+      "checksum": "b2c3d4e5f6a7...",
+      "size": 28450,
+      "mode": "replace"
+    },
+    {
+      "path": "electron/preload.js",
+      "checksum": "c3d4e5f6a7b8...",
+      "size": 3842,
+      "mode": "replace"
+    },
+    {
+      "path": "windows/native-services/CorexServiceHost.exe",
+      "checksum": "d4e5f6a7b8c9...",
+      "size": 152000,
+      "mode": "replace"
+    }
+  ],
+  "packages": {
+    "full": {
+      "url": "https://updates.corex.dev/v1/download/1.0.0/full",
+      "checksum": "5a6b7c8d9e0f...",
+      "size": 52428800,
+      "format": "zip"
+    },
+    "delta": {
+      "url": "https://updates.corex.dev/v1/download/1.0.0/delta",
+      "checksum": "6a7b8c9d0e1f...",
+      "size": 5242880,
+      "format": "zip",
+      "fromVersion": "1.0.0-rc1",
+      "fromBuild": 95
+    }
+  },
+  "channels": {
+    "stable": {
+      "version": "1.0.0",
+      "build": 100,
+      "updateUrl": "https://updates.corex.dev/v1/stable"
+    },
+    "beta": {
+      "version": "1.1.0-beta.1",
+      "build": 105,
+      "updateUrl": "https://updates.corex.dev/v1/beta"
+    },
+    "nightly": {
+      "version": "1.1.0-nightly.20260627",
+      "build": 110,
+      "updateUrl": "https://updates.corex.dev/v1/nightly"
+    }
+  },
+  "requirements": {
+    "os": "windows",
+    "osVersion": "10.0.19045",
+    "osBuild": 19045,
+    "ram": 4294967296,
+    "disk": 10737418240,
+    "architecture": "x64",
+    "adminRequired": true
+  },
+  "runtime": {
+    "php": {
+      "version": "8.3.12",
+      "required": true
+    },
+    "python": {
+      "version": "3.12.7",
+      "required": true
+    },
+    "node": {
+      "version": "20.17.0",
+      "required": false
+    }
+  }
+}
