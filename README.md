@@ -524,7 +524,7 @@ Proprietary. All rights reserved. Corex.dev is not open source software; the sou
 |---------|---------|
 | [GitHub Issues](https://github.com/corex-dev/corex/issues) | Bug reports, feature requests |
 | [Discussions](https://github.com/corex-dev/corex/discussions) | Questions, ideas, community |
-| Email: `dev@corex.dev` | Security disclosures, partnerships |
+| Email: `menmengleapx1@gmail.com` | Security disclosures, partnerships |
 
 ---
 
