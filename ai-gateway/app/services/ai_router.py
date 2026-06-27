@@ -22,6 +22,7 @@ from app.services.providers.openai import OpenAIProvider
 from app.services.providers.anthropic import AnthropicProvider
 from app.services.providers.groq import GroqProvider
 from app.services.providers.deepseek import DeepSeekProvider
+from app.services.providers.ollama import OllamaProvider
 from app.services.usage_tracker import usage_tracker
 from app.services.token_optimizer import token_optimizer, count_tokens
 
@@ -42,6 +43,20 @@ PROVIDER_MAP: Dict[str, str] = {
     "gemma2-9b": "groq",
     "deepseek-chat": "deepseek",
     "deepseek-coder": "deepseek",
+    # Ollama local models
+    # (keys must not collide with remote models above)
+    "llama3": "ollama",
+    "llama3.2": "ollama",
+    "llama3.1": "ollama",
+    "codellama": "ollama",
+    "mistral": "ollama",
+    "mixtral": "ollama",
+    "gemma2": "ollama",
+    "phi3": "ollama",
+    "neural-chat": "ollama",
+    "qwen2": "ollama",
+    "qwen2.5-coder": "ollama",
+    "starling-lm": "ollama",
 }
 
 MODEL_ALIASES: Dict[str, str] = {
@@ -72,6 +87,12 @@ class AIRouter:
             if p.api_key:
                 self._providers[p.name] = p
                 logger.info("provider_initialized", provider=p.name)
+
+        # Ollama is always registered (no API key needed)
+        effective = settings.get_effective_providers()
+        if settings.ollama_enabled and "ollama" in effective:
+            self._providers["ollama"] = OllamaProvider()
+            logger.info("ollama_provider_initialized", base_url=settings.ollama_base_url)
 
     def get_provider_for_model(self, model: str) -> Tuple[BaseProvider, str]:
         resolved = MODEL_ALIASES.get(model, model)
@@ -108,6 +129,7 @@ class AIRouter:
             "anthropic": ["claude-"],
             "groq": ["llama", "mixtral", "gemma"],
             "deepseek": ["deepseek-"],
+            "ollama": ["llama3", "llama3.", "codellama", "deepseek-coder", "mistral", "mixtral", "gemma2", "phi3", "neural-chat", "qwen2", "starling-lm"],
         }
         return mapping.get(provider_name, [])
 
@@ -379,6 +401,72 @@ class AIRouter:
         raw = json.dumps(request.model_dump(), sort_keys=True)
         hash_val = hashlib.md5(raw.encode()).hexdigest()
         return f"chat:{user_id or 'anon'}:{hash_val}"
+
+    async def chat_completion_raw(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle a raw JSON request (without Pydantic validation).
+
+        Used by main.py when receiving proxied requests.
+        Supports automatic fallback between remote and local providers.
+        """
+        model = body.get("model", "")
+        messages = body.get("messages", [])
+        stream = body.get("stream", False)
+
+        if stream:
+            raise NotImplementedError("Streaming via raw endpoint not yet supported")
+
+        # Build a ChatCompletionRequest from the raw body
+        from app.models.request import ChatCompletionRequest as CCR
+        request = CCR(
+            model=model,
+            messages=[{"role": m.get("role", "user"), "content": m.get("content", "")} for m in messages],
+            temperature=body.get("temperature", 0.7),
+            top_p=body.get("top_p", 1.0),
+            max_tokens=body.get("max_tokens", 4096),
+            stream=False,
+        )
+
+        try:
+            result = await self.chat_completion(request)
+            return result.model_dump()
+        except (ProviderError, ModelNotFoundError) as e:
+            logger.warning("primary_provider_failed", model=model, error=str(e))
+
+            # Try fallback: if remote fails, try local Ollama
+            if model not in PROVIDER_MAP and "ollama" in self._providers:
+                fallback_model = self._get_local_fallback(model)
+                if fallback_model:
+                    logger.info("fallback_to_ollama", original=model, fallback=fallback_model)
+                    request.model = fallback_model
+                    try:
+                        result = await self._providers["ollama"].chat_completion(request)
+                        return self._normalize_response(result, fallback_model, "ollama").model_dump()
+                    except Exception as fallback_err:
+                        logger.error("fallback_failed", error=str(fallback_err))
+
+            raise
+
+    def _get_local_fallback(self, model: str) -> Optional[str]:
+        """Find a suitable local Ollama model as fallback."""
+        ollama = self._providers.get("ollama")
+        if not ollama:
+            return None
+
+        # Map remote model families to local alternatives
+        local_map = {
+            "gpt": "llama3.2",
+            "claude": "llama3.1",
+            "llama": "llama3.2",
+            "mixtral": "mixtral",
+            "deepseek": "deepseek-coder",
+            "gemma": "gemma2",
+        }
+
+        for prefix, local_model in local_map.items():
+            if model.lower().startswith(prefix):
+                return local_model
+
+        return settings.ollama_default_model if settings.ollama_enabled else None
 
     async def close(self) -> None:
         for provider in self._providers.values():

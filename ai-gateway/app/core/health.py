@@ -2,6 +2,7 @@
 
 Provides comprehensive health checks used by /health and /ready endpoints.
 Integrates with Prometheus metrics and Sentry for monitoring.
+Windows-aware: handles platform-specific paths and process info.
 """
 
 from __future__ import annotations
@@ -13,10 +14,13 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+import httpx
 import redis.asyncio as aioredis
 import structlog
 
-logger = structlog.get_logger()
+from app.core.windows import IS_WINDOWS
+
+logger = structlog.get_logger(__name__)
 
 
 class ServiceStatus(str, Enum):
@@ -27,8 +31,6 @@ class ServiceStatus(str, Enum):
 
 @dataclass
 class HealthCheck:
-    """Result of a single health check."""
-
     name: str
     status: ServiceStatus
     latency_ms: float
@@ -46,8 +48,6 @@ class HealthCheck:
 
 
 class HealthRegistry:
-    """Registry of health checks that can be run on demand."""
-
     def __init__(self):
         self._checks: dict[str, callable] = {}
         self._cache: dict[str, HealthCheck] = {}
@@ -80,7 +80,7 @@ class HealthRegistry:
                     message=f"Check failed: {result}",
                 )
             else:
-                results[name] = result  # type: ignore
+                results[name] = result
 
         self._cache = results
         self._last_cache_update = now
@@ -102,9 +102,7 @@ class HealthRegistry:
             return ServiceStatus.DEGRADED, degraded
         return ServiceStatus.HEALTHY, []
 
-    async def _run_single(
-        self, name: str, check_fn: callable
-    ) -> HealthCheck:
+    async def _run_single(self, name: str, check_fn: callable) -> HealthCheck:
         start = time.time()
         try:
             result = await check_fn()
@@ -140,14 +138,12 @@ class HealthRegistry:
             )
 
 
-# Global health registry
 health_registry = HealthRegistry()
 
 
 # ── Built-in health checks ──────────────────────────────────────────────
 
 async def check_redis() -> HealthCheck | tuple:
-    """Check Redis connectivity and latency."""
     from app.core.config import settings
 
     start = time.time()
@@ -194,77 +190,140 @@ async def check_redis() -> HealthCheck | tuple:
 
 
 async def check_memory() -> HealthCheck:
-    """Check memory usage of the Python process."""
-    import psutil
+    try:
+        import psutil
 
-    process = psutil.Process()
-    mem = process.memory_info()
-    percent = process.memory_percent()
+        process = psutil.Process()
+        mem = process.memory_info()
+        percent = process.memory_percent()
 
-    status = ServiceStatus.HEALTHY
-    message = "Memory usage normal"
+        status = ServiceStatus.HEALTHY
+        message = "Memory usage normal"
 
-    if percent > 85:
-        status = ServiceStatus.UNHEALTHY
-        message = "Memory usage critical"
-    elif percent > 70:
-        status = ServiceStatus.DEGRADED
-        message = "Memory usage high"
+        if percent > 85:
+            status = ServiceStatus.UNHEALTHY
+            message = "Memory usage critical"
+        elif percent > 70:
+            status = ServiceStatus.DEGRADED
+            message = "Memory usage high"
 
-    return HealthCheck(
-        name="memory",
-        status=status,
-        latency_ms=0,
-        message=message,
-        details={
-            "rss_bytes": mem.rss,
-            "vms_bytes": mem.vms,
-            "percent": round(percent, 1),
-            "available_mb": round(psutil.virtual_memory().available / 1024 / 1024, 1),
-        },
-    )
+        return HealthCheck(
+            name="memory",
+            status=status,
+            latency_ms=0,
+            message=message,
+            details={
+                "rss_bytes": mem.rss,
+                "vms_bytes": mem.vms,
+                "percent": round(percent, 1),
+                "available_mb": round(psutil.virtual_memory().available / 1024 / 1024, 1),
+            },
+        )
+    except ImportError:
+        return HealthCheck(
+            name="memory",
+            status=ServiceStatus.HEALTHY,
+            latency_ms=0,
+            message="psutil not available",
+            details={"note": "Install psutil for memory monitoring"},
+        )
 
 
 async def check_disk() -> HealthCheck:
-    """Check disk usage for critical paths."""
-    import psutil
+    try:
+        import psutil
 
-    disk = psutil.disk_usage("/")
-    status = ServiceStatus.HEALTHY
-    message = "Disk usage normal"
+        # Use the Windows system drive or POSIX root
+        disk_path = "C:\\" if IS_WINDOWS else "/"
+        disk = psutil.disk_usage(disk_path)
+        status = ServiceStatus.HEALTHY
+        message = "Disk usage normal"
 
-    if disk.percent > 95:
-        status = ServiceStatus.UNHEALTHY
-        message = "Disk usage critical"
-    elif disk.percent > 85:
-        status = ServiceStatus.DEGRADED
-        message = "Disk usage high"
+        if disk.percent > 95:
+            status = ServiceStatus.UNHEALTHY
+            message = "Disk usage critical"
+        elif disk.percent > 85:
+            status = ServiceStatus.DEGRADED
+            message = "Disk usage high"
 
-    return HealthCheck(
-        name="disk",
-        status=status,
-        latency_ms=0,
-        message=message,
-        details={
-            "total_gb": round(disk.total / 1024 / 1024 / 1024, 2),
-            "used_gb": round(disk.used / 1024 / 1024 / 1024, 2),
-            "free_gb": round(disk.free / 1024 / 1024 / 1024, 2),
-            "percent": disk.percent,
-        },
-    )
+        return HealthCheck(
+            name="disk",
+            status=status,
+            latency_ms=0,
+            message=message,
+            details={
+                "path": disk_path,
+                "total_gb": round(disk.total / 1024 / 1024 / 1024, 2),
+                "used_gb": round(disk.used / 1024 / 1024 / 1024, 2),
+                "free_gb": round(disk.free / 1024 / 1024 / 1024, 2),
+                "percent": disk.percent,
+            },
+        )
+    except ImportError:
+        return HealthCheck(
+            name="disk",
+            status=ServiceStatus.HEALTHY,
+            latency_ms=0,
+            message="psutil not available",
+        )
+
+
+async def check_ollama() -> HealthCheck:
+    """Check if local Ollama instance is running and healthy."""
+    from app.core.config import settings
+
+    if not settings.ollama_enabled:
+        return HealthCheck(
+            name="ollama",
+            status=ServiceStatus.HEALTHY,
+            latency_ms=0,
+            message="Ollama disabled",
+            details={"enabled": False},
+        )
+
+    start = time.time()
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            response = await client.get(f"{settings.ollama_base_url}/api/version")
+            latency = (time.time() - start) * 1000
+
+            if response.status_code == 200:
+                version = response.json().get("version", "unknown")
+                return HealthCheck(
+                    name="ollama",
+                    status=ServiceStatus.HEALTHY,
+                    latency_ms=latency,
+                    message=f"Ollama {version} running",
+                    details={"version": version, "enabled": True},
+                )
+
+            return HealthCheck(
+                name="ollama",
+                status=ServiceStatus.DEGRADED,
+                latency_ms=latency,
+                message=f"Ollama returned {response.status_code}",
+                details={"enabled": True},
+            )
+    except Exception as e:
+        latency = (time.time() - start) * 1000
+        return HealthCheck(
+            name="ollama",
+            status=ServiceStatus.DEGRADED,
+            latency_ms=latency,
+            message=f"Ollama not reachable: {e}",
+            details={"enabled": True, "url": settings.ollama_base_url},
+        )
 
 
 async def check_database() -> HealthCheck | tuple:
-    """Check database connectivity (stub - actual DB check would use SQLAlchemy)."""
     return (
         ServiceStatus.HEALTHY,
         "Database check not configured",
-        {"driver": "asyncpg", "configured": False},
+        {"driver": "none", "configured": False},
     )
 
 
 async def check_uptime(process_start_time: float) -> HealthCheck:
-    """Check process uptime."""
     uptime_seconds = time.time() - process_start_time
     return HealthCheck(
         name="uptime",
@@ -287,7 +346,6 @@ def get_health_response(
     failed: list[str],
     service: str = "ai-gateway",
 ) -> dict:
-    """Build a standardized health response for the /health endpoint."""
     now = datetime.now(timezone.utc)
     return {
         "status": overall.value,

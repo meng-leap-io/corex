@@ -4,11 +4,25 @@ from __future__ import annotations
 
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
-from sentry_sdk.integrations.structlog import StructlogIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
 from sentry_sdk.integrations.httpx import HttpxIntegration
 
 from app.core.config import settings
+
+
+def _get_integrations() -> list:
+    """Collect Sentry integrations, skipping unavailable ones."""
+    integrations = [
+        FastApiIntegration(transaction_style="endpoint"),
+        RedisIntegration(),
+        HttpxIntegration(),
+    ]
+    try:
+        from sentry_sdk.integrations.structlog import StructlogIntegration
+        integrations.append(StructlogIntegration())
+    except ImportError:
+        pass
+    return integrations
 
 
 def configure_sentry() -> None:
@@ -26,14 +40,7 @@ def configure_sentry() -> None:
         max_request_body_size="always",
         send_default_pii=False,
         attach_stacktrace=True,
-        integrations=[
-            FastApiIntegration(
-                transaction_style="endpoint",
-            ),
-            StructlogIntegration(),
-            RedisIntegration(),
-            HttpxIntegration(),
-        ],
+        integrations=_get_integrations(),
         ignore_errors=[
             "ValueError",
             "ValidationError",

@@ -1,11 +1,29 @@
+"""Configuration for the Corex AI Gateway.
+
+Windows-aware: uses Windows paths, registry overrides, and environment
+variable fallbacks for all platform-specific settings.
+"""
+
 from __future__ import annotations
 
+import os
+import sys
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.core.windows import (
+    IS_WINDOWS,
+    get_hostname,
+    get_default_data_dir,
+    get_default_log_dir,
+    get_prometheus_multiproc_dir,
+    read_registry,
+    resolve_path,
+)
 
 
 class Environment(str, Enum):
@@ -22,14 +40,25 @@ class LogLevel(str, Enum):
     CRITICAL = "critical"
 
 
+class ProviderStrategy(str, Enum):
+    """Provider selection strategy for Windows desktop mode."""
+
+    AUTO = "auto"          # Try remote, fallback to local
+    REMOTE_FIRST = "remote_first"
+    LOCAL_FIRST = "local_first"
+    LOCAL_ONLY = "local_only"   # Fully offline
+    REMOTE_ONLY = "remote_only"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="allow",
     )
 
-    # Application
+    # ── Application ─────────────────────────────────────────────────
     app_name: str = "Corex AI Gateway"
     app_version: str = "1.0.0"
     environment: Environment = Environment.PRODUCTION
@@ -37,10 +66,10 @@ class Settings(BaseSettings):
     log_level: LogLevel = LogLevel.INFO
     sentry_dsn: Optional[str] = None
 
-    # Server
-    host: str = Field(default="0.0.0.0", alias="HOST")
+    # ── Server ──────────────────────────────────────────────────────
+    host: str = Field(default="0.0.0.0" if not IS_WINDOWS else "127.0.0.1", alias="HOST")
     port: int = Field(default=8000, alias="PORT")
-    workers: int = 4
+    workers: int = Field(default=4 if not IS_WINDOWS else 2)
     cors_origins: List[str] = [
         "https://corex.dev",
         "https://console.corex.dev",
@@ -48,54 +77,96 @@ class Settings(BaseSettings):
         "http://localhost:8000",
     ]
 
-    # Redis
-    redis_host: str = "redis"
-    redis_port: int = 6379
-    redis_password: Optional[str] = None
-    redis_db: int = 0
-    redis_cache_ttl: int = 300
+    # ── Paths (Windows-aware via app.core.windows) ──────────────────
+    data_dir: str = Field(default=str(get_default_data_dir()), alias="COREX_DATA_DIR")
+    log_dir: str = Field(default=str(get_default_log_dir()), alias="COREX_LOG_DIR")
+    prometheus_multiproc_dir: str = Field(
+        default=str(get_prometheus_multiproc_dir()), alias="PROMETHEUS_MULTIPROC_DIR"
+    )
 
-    # Auth / JWT
+    @field_validator("data_dir", "log_dir", "prometheus_multiproc_dir", mode="before")
+    @classmethod
+    def _ensure_dir_exists(cls, v: str) -> str:
+        p = Path(v)
+        p.mkdir(parents=True, exist_ok=True)
+        return str(p.resolve())
+
+    @property
+    def data_path(self) -> Path:
+        return resolve_path(self.data_dir)
+
+    @property
+    def log_path(self) -> Path:
+        return resolve_path(self.log_dir)
+
+    # ── Redis ───────────────────────────────────────────────────────
+    redis_host: str = Field(
+        default="redis" if not IS_WINDOWS else read_registry("redis_host", "127.0.0.1"),
+        alias="REDIS_HOST",
+    )
+    redis_port: int = Field(default=6379, alias="REDIS_PORT")
+    redis_password: Optional[str] = Field(default=None, alias="REDIS_PASSWORD")
+    redis_db: int = Field(default=0, alias="REDIS_DB")
+    redis_cache_ttl: int = Field(default=300, alias="REDIS_CACHE_TTL")
+
+    # ── Provider Strategy ───────────────────────────────────────────
+    provider_strategy: ProviderStrategy = Field(
+        default=ProviderStrategy.AUTO, alias="PROVIDER_STRATEGY"
+    )
+
+    # ── Auth / JWT ──────────────────────────────────────────────────
     jwt_secret: str = Field(default="", alias="JWT_SECRET")
     jwt_algorithm: str = "HS256"
     jwt_expiration: int = 3600
 
-    # OpenAI
+    # ── OpenAI ──────────────────────────────────────────────────────
     openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
     openai_organization: Optional[str] = None
     openai_base_url: str = "https://api.openai.com/v1"
 
-    # Anthropic
+    # ── Anthropic ───────────────────────────────────────────────────
     anthropic_api_key: Optional[str] = Field(default=None, alias="ANTHROPIC_API_KEY")
     anthropic_base_url: str = "https://api.anthropic.com/v1"
 
-    # Groq
+    # ── Groq ────────────────────────────────────────────────────────
     groq_api_key: Optional[str] = Field(default=None, alias="GROQ_API_KEY")
     groq_base_url: str = "https://api.groq.com/openai/v1"
 
-    # DeepSeek
+    # ── DeepSeek ────────────────────────────────────────────────────
     deepseek_api_key: Optional[str] = Field(default=None, alias="DEEPSEEK_API_KEY")
     deepseek_base_url: str = "https://api.deepseek.com/v1"
 
-    # Rate Limiting
+    # ── Ollama (local) ──────────────────────────────────────────────
+    ollama_base_url: str = Field(
+        default="http://127.0.0.1:11434", alias="OLLAMA_BASE_URL"
+    )
+    ollama_enabled: bool = Field(default=True, alias="OLLAMA_ENABLED")
+    ollama_default_model: str = Field(
+        default=read_registry("ollama_default_model", "llama3.2"), alias="OLLAMA_DEFAULT_MODEL"
+    )
+
+    # ── Rate Limiting ───────────────────────────────────────────────
     rate_limit_enabled: bool = True
     rate_limit_requests: int = 100
     rate_limit_window: int = 60
     rate_limit_burst: int = 20
 
-    # Usage Tracking
+    # ── Usage Tracking ──────────────────────────────────────────────
     usage_tracking_enabled: bool = True
     usage_reset_daily: bool = True
 
-    # Request
+    # ── Request ─────────────────────────────────────────────────────
     max_request_size: int = 10 * 1024 * 1024
     request_timeout: int = 120
     max_retries: int = 3
     retry_delay: float = 1.0
 
-    # Cost limits
+    # ── Cost limits ─────────────────────────────────────────────────
     max_daily_cost_usd: float = 100.0
     cost_alert_threshold: float = 80.0
+
+    # ── Hostname (cross-platform) ───────────────────────────────────
+    hostname: str = Field(default_factory=get_hostname)
 
     @property
     def is_production(self) -> bool:
@@ -106,10 +177,49 @@ class Settings(BaseSettings):
         return self.environment == Environment.DEVELOPMENT
 
     @property
+    def is_windows(self) -> bool:
+        return IS_WINDOWS
+
+    @property
     def redis_url(self) -> str:
         if self.redis_password:
             return f"redis://:{self.redis_password}@{self.redis_host}:{self.redis_port}/{self.redis_db}"
         return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
+
+    @property
+    def local_models_enabled(self) -> bool:
+        """Whether local Ollama models should be used."""
+        return self.ollama_enabled
+
+    @property
+    def use_local_first(self) -> bool:
+        return self.provider_strategy in (
+            ProviderStrategy.LOCAL_FIRST,
+            ProviderStrategy.LOCAL_ONLY,
+        )
+
+    @property
+    def use_remote_first(self) -> bool:
+        return self.provider_strategy in (
+            ProviderStrategy.REMOTE_FIRST,
+            ProviderStrategy.REMOTE_ONLY,
+        )
+
+    def get_effective_providers(self) -> List[str]:
+        """Return the list of enabled providers based on strategy."""
+        all_providers = ["openai", "anthropic", "groq", "deepseek", "ollama"]
+        remote_providers = ["openai", "anthropic", "groq", "deepseek"]
+
+        if self.provider_strategy == ProviderStrategy.LOCAL_ONLY:
+            return [p for p in all_providers if p == "ollama"]
+        if self.provider_strategy == ProviderStrategy.REMOTE_ONLY:
+            return remote_providers
+        if self.provider_strategy == ProviderStrategy.LOCAL_FIRST:
+            return ["ollama"] + remote_providers
+        if self.provider_strategy == ProviderStrategy.REMOTE_FIRST:
+            return remote_providers + ["ollama"]
+
+        return all_providers
 
 
 settings = Settings()
