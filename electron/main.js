@@ -318,8 +318,19 @@ function setupIPC() {
   });
 
   // Notifications
-  ipcMain.on('show-notification', (_, { title, body, silent }) => {
+  ipcMain.on('show-notification', (_, { title, body, silent, actions, onClick }) => {
     const notif = new Notification({ title, body, silent });
+    if (actions && Notification.isSupported()) {
+      notif.actions = actions;
+    }
+    notif.on('click', () => {
+      mainWindow?.show();
+      mainWindow?.focus();
+      mainWindow?.webContents.send('notification-clicked', { title, body });
+    });
+    notif.on('action', (event, index) => {
+      mainWindow?.webContents.send('notification-action', { title, body, index });
+    });
     notif.show();
   });
 
@@ -374,6 +385,107 @@ function setupIPC() {
   // Open external URL
   ipcMain.on('open-external', (_, url) => {
     shell.openExternal(url);
+  });
+
+  // Taskbar progress
+  ipcMain.on('set-progress-bar', (_, progress) => {
+    if (mainWindow) {
+      if (progress < 0) {
+        mainWindow.setProgressBar(-1); // Indeterminate
+      } else {
+        mainWindow.setProgressBar(Math.min(1, Math.max(0, progress)));
+      }
+    }
+  });
+
+  ipcMain.on('set-progress-bar-mode', (_, mode) => {
+    if (mainWindow) {
+      mainWindow.setProgressBar(-1, { mode: mode || 'normal' });
+    }
+  });
+
+  // Taskbar overlay icon
+  ipcMain.on('set-overlay-icon', (_, { icon, description }) => {
+    if (mainWindow && icon) {
+      const img = nativeImage.createFromPath(icon);
+      mainWindow.setOverlayIcon(img, description || '');
+    } else if (mainWindow) {
+      mainWindow.setOverlayIcon(null, '');
+    }
+  });
+
+  // Flash taskbar
+  ipcMain.on('flash-frame', (_, flash = true) => {
+    if (mainWindow) {
+      if (flash) {
+        mainWindow.flashFrame(true);
+        setTimeout(() => mainWindow?.flashFrame(false), 3000);
+      } else {
+        mainWindow.flashFrame(false);
+      }
+    }
+  });
+
+  // Jump List
+  ipcMain.handle('get-jump-list', () => {
+    try {
+      return app.getJumpListSettings();
+    } catch {
+      return null;
+    }
+  });
+
+  ipcMain.handle('set-jump-list', (_, categories) => {
+    try {
+      const jumpList = [];
+      for (const cat of categories) {
+        const items = (cat.items || []).map(item => ({
+          type: 'task',
+          title: item.title,
+          program: process.execPath,
+          args: item.args || '',
+          iconPath: item.icon || process.execPath,
+          iconIndex: 0,
+          description: item.description || '',
+        }));
+        jumpList.push({
+          type: 'custom',
+          name: cat.name || 'Tasks',
+          items,
+        });
+      }
+      app.setJumpList(jumpList);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  ipcMain.handle('clear-jump-list', () => {
+    try {
+      app.setJumpList([]);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  // Recent documents
+  ipcMain.on('add-recent-document', (_, filePath) => {
+    app.addRecentDocument(filePath);
+  });
+
+  ipcMain.on('clear-recent-documents', () => {
+    app.clearRecentDocuments();
+  });
+
+  // Badge counter (macOS) / overlay
+  ipcMain.on('set-badge', (_, count) => {
+    if (count > 0) {
+      app.setBadgeCount(count);
+    } else {
+      app.setBadgeCount(0);
+    }
   });
 
   // Auto-updater
