@@ -9,7 +9,8 @@
         "laravel/framework": "^11.0",
         "firebase/php-jwt": "^6.10",
         "predis/predis": "^2.2",
-        "laravel/sanctum": "^4.0"
+        "laravel/sanctum": "^4.0",
+        "nativephp/electron": "^0.5"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
