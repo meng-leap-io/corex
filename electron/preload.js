@@ -28,8 +28,31 @@ contextBridge.exposeInMainWorld('native', {
   },
 
   // ── Notifications ─────────────────────────────────────────────────
-  notify: (title, body, silent = false) => {
-    ipcRenderer.send('show-notification', { title, body, silent });
+  notify: (title, body, silent = false, actions) => {
+    ipcRenderer.send('show-notification', { title, body, silent, actions });
+  },
+
+  // ── Taskbar ───────────────────────────────────────────────────────
+  taskbar: {
+    setProgress: (progress) => ipcRenderer.send('set-progress-bar', progress),
+    setProgressMode: (mode) => ipcRenderer.send('set-progress-bar-mode', mode),
+    setOverlayIcon: (icon, description) => ipcRenderer.send('set-overlay-icon', { icon, description }),
+    clearOverlayIcon: () => ipcRenderer.send('set-overlay-icon', {}),
+    flash: (flash = true) => ipcRenderer.send('flash-frame', flash),
+    setBadge: (count) => ipcRenderer.send('set-badge', count),
+  },
+
+  // ── Jump List ─────────────────────────────────────────────────────
+  jumpList: {
+    get: () => ipcRenderer.invoke('get-jump-list'),
+    set: (categories) => ipcRenderer.invoke('set-jump-list', categories),
+    clear: () => ipcRenderer.invoke('clear-jump-list'),
+  },
+
+  // ── Recent Documents ──────────────────────────────────────────────
+  recentDocuments: {
+    add: (filePath) => ipcRenderer.send('add-recent-document', filePath),
+    clear: () => ipcRenderer.send('clear-recent-documents'),
   },
 
   // ── App Info ──────────────────────────────────────────────────────
@@ -51,6 +74,7 @@ contextBridge.exposeInMainWorld('native', {
     const validChannels = [
       'menu-action', 'files-opened', 'folder-opened',
       'update-available', 'update-downloaded', 'deep-link',
+      'notification-clicked', 'notification-action',
     ];
     if (validChannels.includes(channel)) {
       const subscription = (_event, ...args) => callback(...args);
