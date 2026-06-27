@@ -20,15 +20,17 @@ return [
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
             'block_for' => null,
             'after_commit' => true,
+            'visibility_timeout' => env('REDIS_QUEUE_VISIBILITY_TIMEOUT', 600),
+            'requeue_after' => env('REDIS_QUEUE_REQUEUE_AFTER', 60),
         ],
     ],
     'batching' => [
-        'database' => env('DB_CONNECTION', 'pgsql'),
+        'database' => env('DB_CONNECTION', 'sqlite'),
         'table' => 'job_batches',
     ],
     'failed' => [
         'driver' => env('QUEUE_FAILED_DRIVER', 'database-uuids'),
-        'database' => env('DB_CONNECTION', 'pgsql'),
+        'database' => env('DB_CONNECTION', 'sqlite'),
         'table' => 'failed_jobs',
     ],
 ];
