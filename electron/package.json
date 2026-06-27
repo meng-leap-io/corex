@@ -1,0 +1,25 @@
+{
+  "name": "corex-desktop",
+  "version": "1.0.0",
+  "description": "Corex AI-Powered Development Platform - Desktop App",
+  "main": "main.js",
+  "author": "Corex.dev",
+  "license": "Proprietary",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "NODE_ENV=development electron .",
+    "build:win": "electron-builder --win --config build-config.js",
+    "build:mac": "electron-builder --mac --config build-config.js",
+    "build:linux": "electron-builder --linux --config build-config.js",
+    "build:all": "electron-builder --win --mac --linux --config build-config.js",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "electron-updater": "^6.1.7"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  }
+}
