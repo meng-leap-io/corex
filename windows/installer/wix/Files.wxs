@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- WiX Files Component - Defines file structure and installation paths -->
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Fragment>
+        <!-- Laravel Backend Component -->
+        <DirectoryRef Id="INSTALLFOLDER">
+            <Component Id="LaravelBackend" Guid="550e8400-e29b-41d4-a716-446655440001">
+                <File Source="$(var.SourceDir)\backend\artisan" />
+                <File Source="$(var.SourceDir)\backend\composer.json" />
+                <File Source="$(var.SourceDir)\backend\composer.lock" />
+                <Directory Name="app">
+                    <File Source="$(var.SourceDir)\backend\app\*" />
+                </Directory>
+                <Directory Name="bootstrap">
+                    <File Source="$(var.SourceDir)\backend\bootstrap\*" />
+                </Directory>
+                <Directory Name="config">
+                    <File Source="$(var.SourceDir)\backend\config\*" />
+                </Directory>
+                <Directory Name="routes">
+                    <File Source="$(var.SourceDir)\backend\routes\*" />
+                </Directory>
+                <Registry
+                    Root="HKLM"
+                    Key="Software\Corex\Backend"
+                    Name="InstallPath"
+                    Value="[INSTALLFOLDER]backend"
+                    Type="string"
+                    Action="write" />
+            </Component>
+        </DirectoryRef>
+
+        <!-- Python AI Gateway Component -->
+        <DirectoryRef Id="INSTALLFOLDER">
+            <Component Id="PythonAIGateway" Guid="550e8400-e29b-41d4-a716-446655440002">
+                <File Source="$(var.SourceDir)\ai-gateway\main.py" />
+                <File Source="$(var.SourceDir)\ai-gateway\requirements.txt" />
+                <File Source="$(var.SourceDir)\ai-gateway\pytest.ini" />
+                <Directory Name="app">
+                    <File Source="$(var.SourceDir)\ai-gateway\app\*" />
+                </Directory>
+                <Directory Name="tests">
+                    <File Source="$(var.SourceDir)\ai-gateway\tests\*" />
+                </Directory>
+                <Registry
+                    Root="HKLM"
+                    Key="Software\Corex\AIGateway"
+                    Name="InstallPath"
+                    Value="[INSTALLFOLDER]ai-gateway"
+                    Type="string"
+                    Action="write" />
+            </Component>
+        </DirectoryRef>
+
+        <!-- Nginx Configuration Component -->
+        <DirectoryRef Id="INSTALLFOLDER">
+            <Component Id="NginxReverse" Guid="550e8400-e29b-41d4-a716-446655440003">
+                <Directory Name="nginx">
+                    <File Source="$(var.SourceDir)\docker\nginx\nginx.conf" />
+                    <File Source="$(var.SourceDir)\docker\nginx\Dockerfile" />
+                    <Directory Name="conf.d">
+                        <File Source="$(var.SourceDir)\docker\nginx\conf.d\*" />
+                    </Directory>
+                </Directory>
+                <Registry
+                    Root="HKLM"
+                    Key="Software\Corex\Nginx"
+                    Name="InstallPath"
+                    Value="[INSTALLFOLDER]nginx"
+                    Type="string"
+                    Action="write" />
+            </Component>
+        </DirectoryRef>
+
+        <!-- Docker Compose Configuration Component -->
+        <DirectoryRef Id="INSTALLFOLDER">
+            <Component Id="DockerCompose" Guid="550e8400-e29b-41d4-a716-446655440004">
+                <File Source="$(var.SourceDir)\docker-compose.yml" />
+                <File Source="$(var.SourceDir)\.env.example" />
+                <Registry
+                    Root="HKLM"
+                    Key="Software\Corex\Docker"
+                    Name="ComposePath"
+                    Value="[INSTALLFOLDER]docker-compose.yml"
+                    Type="string"
+                    Action="write" />
+            </Component>
+        </DirectoryRef>
+
+        <!-- Product Files (documentation, license, etc) -->
+        <DirectoryRef Id="INSTALLFOLDER">
+            <Component Id="ProductFiles" Guid="550e8400-e29b-41d4-a716-446655440005">
+                <File Source="$(var.SourceDir)\README.md" />
+                <File Source="$(var.SourceDir)\LICENSE" />
+                <File Source="$(var.SourceDir)\.env.example" />
+                <Directory Name="docs">
+                    <File Source="$(var.SourceDir)\docs\*" />
+                </Directory>
+            </Component>
+        </DirectoryRef>
+
+        <!-- Docker Desktop Installation Check -->
+        <Component Id="DockerDesktop" Guid="550e8400-e29b-41d4-a716-446655440006">
+            <RegistrySearch
+                Id="DockerDesktopSearch"
+                Root="HKLM"
+                Key="Software\Docker Inc\Docker"
+                Name="InstallPath"
+                Type="raw"
+                Variable="DOCKER_PATH" />
+            <Condition>DOCKER_PATH</Condition>
+            <Registry
+                Root="HKLM"
+                Key="Software\Corex\Dependencies"
+                Name="DockerDesktop"
+                Value="Installed"
+                Type="string"
+                Action="write" />
+        </Component>
+
+        <!-- PHP Runtime Check/Installation -->
+        <Component Id="PHP" Guid="550e8400-e29b-41d4-a716-446655440007">
+            <RegistrySearch
+                Id="PHPSearch"
+                Root="HKLM"
+                Key="Software\Wow6432Node\PHP Project\Core\{PHP_VERSION}"
+                Name="InstallDir"
+                Type="raw"
+                Variable="PHP_PATH" />
+            <Registry
+                Root="HKLM"
+                Key="Software\Corex\Dependencies"
+                Name="PHP"
+                Value="Detected"
+                Type="string"
+                Action="write" />
+        </Component>
+
+        <!-- Python Runtime Check/Installation -->
+        <Component Id="Python" Guid="550e8400-e29b-41d4-a716-446655440008">
+            <RegistrySearch
+                Id="PythonSearch"
+                Root="HKLM"
+                Key="Software\Python\PythonCore\3.12\InstallPath"
+                Name=""
+                Type="raw"
+                Variable="PYTHON_PATH" />
+            <Registry
+                Root="HKLM"
+                Key="Software\Corex\Dependencies"
+                Name="Python"
+                Value="Detected"
+                Type="string"
+                Action="write" />
+        </Component>
+
+        <!-- Redis Cache Check/Installation -->
+        <Component Id="RedisComponent" Guid="550e8400-e29b-41d4-a716-446655440009">
+            <RegistrySearch
+                Id="RedisSearch"
+                Root="HKLM"
+                Key="Software\Redis\redis\InstallPath"
+                Name=""
+                Type="raw"
+                Variable="REDIS_PATH" />
+            <Registry
+                Root="HKLM"
+                Key="Software\Corex\Dependencies"
+                Name="Redis"
+                Value="Detected"
+                Type="string"
+                Action="write" />
+        </Component>
+
+        <!-- Ollama (Optional) Installation -->
+        <Component Id="OllamaComponent" Guid="550e8400-e29b-41d4-a716-446655440010">
+            <RegistrySearch
+                Id="OllamaSearch"
+                Root="HKLM"
+                Key="Software\Ollama\InstallPath"
+                Name=""
+                Type="raw"
+                Variable="OLLAMA_PATH" />
+            <Registry
+                Root="HKLM"
+                Key="Software\Corex\Dependencies"
+                Name="Ollama"
+                Value="Optional"
+                Type="string"
+                Action="write" />
+        </Component>
+
+        <!-- Registry Entries for Application Configuration -->
+        <Component Id="RegistryEntries" Guid="550e8400-e29b-41d4-a716-446655440011">
+            <RegistryKey Root="HKLM" Key="Software\Corex">
+                <RegistryValue
+                    Name="DisplayName"
+                    Value="Corex AI Development Platform"
+                    Type="string"
+                    Action="write" />
+                <RegistryValue
+                    Name="DisplayVersion"
+                    Value="!(bind.FileVersion.CorexExe)"
+                    Type="string"
+                    Action="write" />
+                <RegistryValue
+                    Name="InstallPath"
+                    Value="[INSTALLFOLDER]"
+                    Type="string"
+                    Action="write" />
+                <RegistryValue
+                    Name="InstallDate"
+                    Value="[Date]"
+                    Type="string"
+                    Action="write" />
+            </RegistryKey>
+        </Component>
+
+        <!-- Services Installation Component -->
+        <Component Id="ServicesComponent" Guid="550e8400-e29b-41d4-a716-446655440012">
+            <ServiceInstall
+                Id="CorexPhpServiceInstall"
+                Name="CorexPHP"
+                DisplayName="Corex PHP Backend"
+                Description="PHP-FPM backend for Corex AI Development Platform"
+                Type="ownProcess"
+                StartType="auto"
+                ErrorControl="normal"
+                Account="LocalSystem"
+                Arguments="--config &quot;[INSTALLFOLDER]php\php.ini&quot;"
+                Interactive="no" />
+
+            <ServiceInstall
+                Id="CorexNginxServiceInstall"
+                Name="CorexNginx"
+                DisplayName="Corex Nginx Reverse Proxy"
+                Description="Nginx reverse proxy for Corex"
+                Type="ownProcess"
+                StartType="auto"
+                ErrorControl="normal"
+                Account="LocalSystem"
+                Arguments="-c &quot;[INSTALLFOLDER]nginx\nginx.conf&quot;"
+                Interactive="no" />
+        </Component>
+
+        <!-- Desktop Shortcut Component -->
+        <Component Id="DesktopShortcut" Guid="550e8400-e29b-41d4-a716-446655440013">
+            <RegistryValue
+                Root="HKCU"
+                Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[ProductCode]"
+                Name="DesktopShortcut"
+                Value="1"
+                Type="integer"
+                KeyPath="yes" />
+            <Shortcut
+                Id="DesktopShortcut"
+                Directory="DesktopFolder"
+                Name="Corex"
+                Target="http://localhost"
+                Description="Corex AI Development Platform"
+                Icon="DesktopShortcut.ico"
+                WorkingDirectory="INSTALLFOLDER" />
+        </Component>
+
+        <!-- Start Menu Shortcut Component -->
+        <Component Id="StartMenuShortcut" Guid="550e8400-e29b-41d4-a716-446655440014">
+            <RegistryValue
+                Root="HKCU"
+                Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[ProductCode]"
+                Name="StartMenuShortcut"
+                Value="1"
+                Type="integer"
+                KeyPath="yes" />
+            <Shortcut
+                Id="StartMenuShortcut"
+                Directory="StartMenuFolder"
+                Name="Corex"
+                Target="http://localhost"
+                Description="Corex AI Development Platform"
+                Icon="DesktopShortcut.ico"
+                WorkingDirectory="INSTALLFOLDER" />
+        </Component>
+
+        <!-- Uninstall Shortcut Component -->
+        <Component Id="UninstallShortcut" Guid="550e8400-e29b-41d4-a716-446655440015">
+            <RegistryValue
+                Root="HKCU"
+                Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[ProductCode]"
+                Name="UninstallShortcut"
+                Value="1"
+                Type="integer"
+                KeyPath="yes" />
+            <Shortcut
+                Id="UninstallShortcut"
+                Directory="StartMenuFolder"
+                Name="Uninstall Corex"
+                Target="msiexec.exe"
+                Arguments="/x [ProductCode]"
+                Description="Remove Corex from this computer" />
+        </Component>
+    </Fragment>
+</Wix>

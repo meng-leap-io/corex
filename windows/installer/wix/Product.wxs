@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    WiX Toolset Installer for Corex AI Development Platform
+    
+    Build instructions:
+    1. Install WiX Toolset 3.14+
+    2. Run: candle.exe -o obj\ Product.wxs
+    3. Run: light.exe -o Corex-Setup.msi obj\*.wixobj
+    
+    Or use: msbuild /p:Configuration=Release CorexInstaller.wixproj
+-->
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product
+        Id="*"
+        Name="Corex AI Development Platform"
+        Language="1033"
+        Version="1.0.0.0"
+        Manufacturer="Corex Development"
+        UpgradeCode="550e8400-e29b-41d4-a716-446655440000">
+
+        <Package
+            Id="*"
+            Keywords="Corex, AI, Development, Platform, Docker"
+            Description="Complete AI-powered development platform with Laravel backend and FastAPI AI gateway"
+            Manufacturer="Corex Development"
+            InstallerVersion="200"
+            Languages="1033"
+            Codepage="1252"
+            SummaryCodepage="1252"
+            InstallScope="perMachine"
+            Compressed="yes"
+            Platform="x64" />
+
+        <MajorUpgrade
+            AllowDowngrades="no"
+            DowngradeErrorMessage="A newer version of Corex is already installed. Please uninstall it first."
+            AllowSameVersionUpgrades="no"
+            Schedule="afterInstallInitialize" />
+
+        <Media
+            Id="1"
+            Cabinet="Corex.cab"
+            EmbedCab="yes"
+            CompressionLevel="high"
+            DiskPrompt="Installation media for Corex" />
+
+        <!-- Features -->
+        <Feature
+            Id="ProductFeature"
+            Title="Corex AI Development Platform"
+            Level="1"
+            AllowAbsent="no"
+            Display="expand">
+
+            <ComponentRef Id="ProductFiles" />
+            <ComponentRef Id="DockerDesktop" />
+            <ComponentRef Id="PHP" />
+            <ComponentRef Id="Python" />
+            <ComponentRef Id="RedisComponent" />
+            <ComponentRef Id="OllamaComponent" />
+            <ComponentRef Id="RegistryEntries" />
+            <ComponentRef Id="ServicesComponent" />
+            <ComponentRef Id="DesktopShortcut" />
+            <ComponentRef Id="StartMenuShortcut" />
+            <ComponentRef Id="UninstallShortcut" />
+            
+            <Feature
+                Id="CorexCore"
+                Title="Corex Core (Laravel + FastAPI + Nginx)"
+                Level="1"
+                AllowAbsent="no" />
+
+            <Feature
+                Id="OptionalTools"
+                Title="Optional Tools (Ollama for local AI models)"
+                Level="2"
+                AllowAbsent="yes" />
+        </Feature>
+
+        <!-- Installation directories -->
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFiles64Folder" Name="Program Files">
+                <Directory Id="INSTALLFOLDER" Name="Corex" />
+            </Directory>
+            <Directory Id="ProgramMenuFolder" Name="Programs">
+                <Directory Id="StartMenuFolder" Name="Corex" />
+            </Directory>
+            <Directory Id="DesktopFolder" Name="Desktop" />
+            <Directory Id="LocalAppDataFolder" Name="AppData">
+                <Directory Id="LocalAppDataCorex" Name="Corex" />
+            </Directory>
+        </Directory>
+
+        <!-- Components and files - delegated to separate files -->
+        <ComponentRef Id="LaravelBackend" />
+        <ComponentRef Id="PythonAIGateway" />
+        <ComponentRef Id="NginxReverse" />
+        <ComponentRef Id="DockerCompose" />
+
+        <!-- Services - delegated to Services.wxs -->
+        <ServiceControl
+            Id="StartCorexPhpService"
+            Name="corex-php"
+            Start="install"
+            Stop="both"
+            Remove="uninstall"
+            Wait="yes" />
+
+        <ServiceControl
+            Id="StartCorexNginxService"
+            Name="corex-nginx"
+            Start="install"
+            Stop="both"
+            Remove="uninstall"
+            Wait="yes" />
+
+        <!-- UI Sequence -->
+        <UIRef Id="WixUI_InstallDir" />
+        <UIRef Id="WixUI_ErrorProgressText" />
+        
+        <WixVariable
+            Id="WixUIInstallDirectory"
+            Value="INSTALLFOLDER"
+            Overridable="yes" />
+
+        <WixVariable
+            Id="WixUIBannerBmp"
+            Value="images\banner.bmp"
+            Overridable="yes" />
+
+        <WixVariable
+            Id="WixUIDialogBmp"
+            Value="images\dialog.bmp"
+            Overridable="yes" />
+
+        <!-- Launch application after install -->
+        <Property Id="ARPPRODUCTICON" Value="DesktopShortcut.ico" />
+        <Property Id="ARPNOMODIFY" Value="1" />
+
+        <!-- Custom actions for installation -->
+        <CustomAction
+            Id="InstallDependencies"
+            BinaryKey="DependencyInstaller"
+            DllEntry="InstallDependencies"
+            Execute="immediate"
+            Return="check" />
+
+        <CustomAction
+            Id="RegisterServices"
+            BinaryKey="ServiceManager"
+            DllEntry="RegisterServices"
+            Execute="deferred"
+            Return="check"
+            Impersonate="no" />
+
+        <CustomAction
+            Id="StartServices"
+            BinaryKey="ServiceManager"
+            DllEntry="StartServices"
+            Execute="deferred"
+            Return="ignore"
+            Impersonate="no" />
+
+        <InstallExecuteSequence>
+            <Custom
+                Action="InstallDependencies"
+                After="InstallInitialize">
+                NOT Installed OR REINSTALL
+            </Custom>
+            <Custom
+                Action="RegisterServices"
+                After="InstallFiles">
+                NOT Installed OR REINSTALL
+            </Custom>
+            <Custom
+                Action="StartServices"
+                After="RegisterServices">
+                NOT Installed OR REINSTALL
+            </Custom>
+        </InstallExecuteSequence>
+
+    </Product>
+</Wix>
