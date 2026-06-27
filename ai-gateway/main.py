@@ -1,7 +1,14 @@
-"""Corex.dev AI Gateway - Production FastAPI Application"""
+"""Corex.dev AI Gateway - Production FastAPI Application
+
+Windows-aware: handles cross-platform path differences, Event Logging,
+and local Ollama integration for offline AI operations.
+"""
+
+from __future__ import annotations
 
 import logging
 import os
+import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -11,10 +18,28 @@ import structlog
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings
+
+from app.core.windows import (
+    IS_WINDOWS,
+    get_hostname,
+    get_prometheus_multiproc_dir,
+    write_event_log,
+    set_high_performance,
+    configure_iocp,
+)
+
+# Configure Windows-specific optimizations on startup
+if IS_WINDOWS:
+    set_high_performance()
+    configure_iocp()
+    # Set Prometheus multiprocess directory to a Windows-compatible path
+    os.environ.setdefault(
+        "PROMETHEUS_MULTIPROC_DIR",
+        str(get_prometheus_multiproc_dir()),
+    )
 
 from app.middleware.security_middleware import (
     InputValidationMiddleware,
@@ -31,6 +56,7 @@ from app.core.health import (
     check_memory,
     check_disk,
     check_uptime,
+    check_ollama,
     get_health_response,
 )
 from app.services.agents.orchestrator import AgentOrchestrator
@@ -40,47 +66,52 @@ from app.services.agents.workflows import WORKFLOW_REGISTRY, WORKFLOW_EXAMPLES, 
 # ---------------------------------------------------------------------------
 # Structured logging
 # ---------------------------------------------------------------------------
-structlog.configure(
-    processors=[
+
+def configure_structlog() -> None:
+    """Configure structlog with Windows Event Log support."""
+    processors = [
         structlog.stdlib.filter_by_level,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.JSONRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
-    context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
-)
+    ]
+
+    # On Windows, also write errors to the Event Log
+    if IS_WINDOWS:
+        from app.core.windows import write_event_log
+
+        def event_log_processor(logger, method_name, event_dict):
+            level = event_dict.get("level", "info")
+            message = event_dict.get("event", "")
+            write_event_log(message, level=level)
+            return event_dict
+
+        processors.insert(0, event_log_processor)
+
+    structlog.configure(
+        processors=processors,
+        wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+        context_class=dict,
+        logger_factory=structlog.PrintLoggerFactory(),
+    )
+
+
+configure_structlog()
 
 logger = structlog.get_logger()
 
 # ---------------------------------------------------------------------------
-# Process metadata
+# Process metadata (Windows-compatible)
 # ---------------------------------------------------------------------------
 PROCESS_START_TIME = time.time()
-HOSTNAME = os.uname().nodename
+HOSTNAME = get_hostname()
 
-
-class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
-    environment: str = "production"
-    log_level: str = "info"
-    jwt_secret: str = ""
-    redis_host: str = "redis"
-    redis_password: str = ""
-    openai_api_key: str = ""
-    anthropic_api_key: str = ""
-    sentry_dsn: str = ""
-    prometheus_multiproc_dir: str = ""
-
-    class Config:
-        env_prefix = ""
-
-
-settings = Settings()
-
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+from app.core.config import settings
 
 # ---------------------------------------------------------------------------
 # Sentry initialization
@@ -97,7 +128,7 @@ def init_sentry():
 
         sentry_sdk.init(
             dsn=dsn,
-            environment=settings.environment,
+            environment=settings.environment.value,
             release="1.0.0",
             sample_rate=1.0,
             traces_sample_rate=0.25,
@@ -146,19 +177,30 @@ async def lifespan(app: FastAPI):
     health_registry.register("memory", check_memory)
     health_registry.register("disk", check_disk)
     health_registry.register("uptime", lambda: check_uptime(PROCESS_START_TIME))
+
+    if settings.ollama_enabled:
+        health_registry.register("ollama", check_ollama)
+
     logger.info("health_checks_registered", count=len(health_registry._checks))
+
+    if IS_WINDOWS:
+        write_event_log("AI Gateway started", level="info", event_id=100)
+        logger.info("windows_event_log_initialized")
+
     yield
+
+    if IS_WINDOWS:
+        write_event_log("AI Gateway shutting down", level="info", event_id=200)
 
 
 agent_orchestrator = AgentOrchestrator()
 
-# Initialize FastAPI app with security headers and CORS
 app = FastAPI(
     title="Corex AI Gateway",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url=None if settings.environment == "production" else "/docs",
-    redoc_url=None if settings.environment == "production" else "/redoc",
+    docs_url=None if settings.environment != Environment.DEVELOPMENT else "/docs",
+    redoc_url=None if settings.environment != Environment.DEVELOPMENT else "/redoc",
 )
 
 app.add_middleware(
@@ -174,12 +216,7 @@ app.add_middleware(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://corex.dev",
-        "https://console.corex.dev",
-        "http://localhost:3000",
-        "http://localhost:8000",
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
@@ -187,12 +224,12 @@ app.add_middleware(
     max_age=600,
 )
 
-# Security middleware (order matters: validate -> sanitize -> rate limit -> filter output)
 app.add_middleware(OutputFilterMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(InputSanitizationMiddleware)
 app.add_middleware(InputValidationMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+
 
 # ---------------------------------------------------------------------------
 # Middleware: Request ID
@@ -252,7 +289,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health", tags=["observability"])
 async def health_check(request: Request):
-    """Comprehensive health check for load balancers and monitoring."""
     results = await health_registry.run_all(use_cache=True)
     overall, failed = await health_registry.get_overall_status(results)
     status_code = 200 if overall == ServiceStatus.HEALTHY else 503
@@ -266,14 +302,16 @@ async def health_check(request: Request):
 
 @app.get("/ready", tags=["observability"])
 async def readiness_check():
-    """Readiness probe for Kubernetes - lightweight check."""
-    return {"status": "ready", "service": "ai-gateway", "uptime_seconds": int(time.time() - PROCESS_START_TIME)}
+    return {
+        "status": "ready",
+        "service": "ai-gateway",
+        "platform": "windows" if IS_WINDOWS else "linux",
+        "uptime_seconds": int(time.time() - PROCESS_START_TIME),
+    }
 
 
 @app.get("/metrics", tags=["observability"])
 async def metrics():
-    """Prometheus metrics endpoint."""
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
     return Response(
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST,
@@ -286,26 +324,33 @@ async def root():
         "message": "Corex AI Gateway",
         "version": "1.0.0",
         "hostname": HOSTNAME,
+        "platform": "windows" if IS_WINDOWS else "linux",
         "uptime_seconds": int(time.time() - PROCESS_START_TIME),
+        "local_models": settings.ollama_enabled,
     }
 
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
-    """
-    Proxy and augment chat completion requests to AI providers.
-    Production implementation would include:
-    - JWT authentication
-    - Rate limiting via Redis
-    - Request/response transformation
-    - Usage tracking
-    - Fallback between providers
-    """
     body = await request.json()
     logger.info("chat_completion_request", model=body.get("model"))
 
-    # Production code would route to OpenAI / Anthropic here
-    return {"choices": [{"message": {"role": "assistant", "content": "Hello from Corex AI Gateway"}}]}
+    from app.services.ai_router import ai_router
+
+    try:
+        result = await ai_router.chat_completion_raw(body)
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error("chat_completion_failed", error=str(e))
+        return JSONResponse(
+            status_code=502,
+            content={
+                "error": {
+                    "message": "AI provider error",
+                    "type": "provider_error",
+                }
+            },
+        )
 
 
 @app.post("/v1/embeddings")
@@ -323,6 +368,7 @@ class AgentExecuteRequest(BaseModel):
     workflow: str = Field(..., description="Workflow name to execute")
     input: Dict[str, Any] = Field(..., description="Input data for the workflow")
     run_id: str = Field(default="", description="Optional existing run ID to resume")
+
 
 class AgentExecuteResponse(BaseModel):
     run_id: str
@@ -424,6 +470,91 @@ async def get_run(run_id: str):
     }
 
 
+# ---------------------------------------------------------------------------
+# Ollama Management Endpoints (Windows/local)
+# ---------------------------------------------------------------------------
+from pydantic import BaseModel as PydanticBaseModel
+
+
+class PullModelRequest(PydanticBaseModel):
+    model: str = Field(..., min_length=1)
+
+
+class PullModelResponse(PydanticBaseModel):
+    success: bool
+    model: str
+    message: str
+
+
+@app.post("/v1/ollama/pull", tags=["ollama"])
+async def ollama_pull(body: PullModelRequest):
+    """Pull a model from Ollama's registry to local."""
+    from app.services.providers.ollama import OllamaProvider
+
+    provider = OllamaProvider()
+    try:
+        result = await provider.pull_model(body.model)
+        return PullModelResponse(
+            success=True,
+            model=body.model,
+            message=result.get("status", "pulled"),
+        )
+    except Exception as e:
+        return PullModelResponse(
+            success=False,
+            model=body.model,
+            message=str(e),
+        )
+
+
+@app.get("/v1/ollama/models", tags=["ollama"])
+async def ollama_models():
+    """List all available local Ollama models."""
+    from app.services.providers.ollama import OllamaProvider
+
+    provider = OllamaProvider()
+    models = await provider.list_models()
+    running = await provider.get_running_models()
+    return {
+        "models": models,
+        "running": running,
+        "enabled": settings.ollama_enabled,
+        "ollama_running": len(models) > 0,
+    }
+
+
+@app.get("/v1/ollama/status", tags=["ollama"])
+async def ollama_status():
+    """Check Ollama health and running models."""
+    from app.services.providers.ollama import OllamaProvider
+
+    provider = OllamaProvider()
+    healthy = await provider.check_health()
+    running = await provider.get_running_models() if healthy else []
+    return {
+        "healthy": healthy,
+        "running_models": running,
+        "base_url": settings.ollama_base_url,
+        "enabled": settings.ollama_enabled,
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    if IS_WINDOWS:
+        # Windows requires asyncio event loop (uvloop not available)
+        import asyncio
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+    uvicorn.run(
+        "main:app",
+        host=settings.host,
+        port=settings.port,
+        workers=settings.workers,
+        log_level=settings.log_level.value,
+        reload=settings.is_development,
+        loop="asyncio" if IS_WINDOWS else "uvloop",
+        http="auto" if IS_WINDOWS else "httptools",
+        limit_max_requests=10000,
+    )
