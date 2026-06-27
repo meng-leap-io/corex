@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withProviders([
         App\Providers\OptimizationServiceProvider::class,
         App\Providers\SecurityServiceProvider::class,
+        App\Providers\RouteServiceProvider::class,
     ])
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(TrustProxies::class);
@@ -38,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'jwt.validate' => JwtValidation::class,
             'brute_force' => BruteForceProtection::class,
             'request.sign' => RequestSigning::class,
+            'nativephp' => \App\Http\Middleware\NativePHPSession::class,
         ]);
 
         $middleware->api(prepend: [
