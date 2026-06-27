@@ -1,0 +1,58 @@
+{
+  "service": {
+    "name": "CorexAIGateway",
+    "display_name": "Corex AI Gateway",
+    "description": "FastAPI-based AI provider gateway with agent orchestration, rate limiting, and caching",
+    "dependencies": ["CorexRedis"]
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8000,
+    "workers": 2,
+    "limit_max_requests": 10000
+  },
+  "paths": {
+    "data_dir": "%LOCALAPPDATA%\\Corex",
+    "log_dir": "%LOCALAPPDATA%\\Corex\\logs",
+    "prometheus_multiproc_dir": "%TMP%\\prometheus"
+  },
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6379,
+    "db": 0,
+    "local": true
+  },
+  "ollama": {
+    "enabled": true,
+    "base_url": "http://127.0.0.1:11434",
+    "default_model": "llama3.2",
+    "auto_pull": false
+  },
+  "provider_strategy": "auto",
+  "logging": {
+    "level": "info",
+    "event_log_source": "CorexAIGateway",
+    "file_rotation_mb": 10,
+    "file_rotation_days": 1
+  },
+  "recovery": {
+    "first_failure": "restart",
+    "second_failure": "restart",
+    "subsequent_failures": "restart",
+    "reset_period_seconds": 86400,
+    "restart_delays_ms": [5000, 10000, 15000]
+  },
+  "performance": {
+    "process_priority": "high",
+    "iocp_threads": 0,
+    "tcp_fast_open": true,
+    "http_keep_alive": true,
+    "max_connections": 1000
+  },
+  "data_dirs": [
+    "%LOCALAPPDATA%\\Corex\\data",
+    "%LOCALAPPDATA%\\Corex\\logs",
+    "%LOCALAPPDATA%\\Corex\\cache",
+    "%TMP%\\prometheus"
+  ]
+}
