@@ -22,7 +22,7 @@ from app.core.config import Settings, Environment
 def test_settings():
     """Override settings for testing."""
     with patch("app.core.config.settings") as mock:
-        mock.environment = Environment.TESTING
+        mock.environment = Environment.DEVELOPMENT
         mock.debug = True
         mock.log_level = "warning"
         mock.rate_limit_enabled = False
