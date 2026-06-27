@@ -13,6 +13,11 @@ class RouteServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureRateLimiting();
+
+        if (file_exists(base_path('routes/desktop.php'))) {
+            Route::middleware('api')
+                ->group(base_path('routes/desktop.php'));
+        }
     }
 
     protected function configureRateLimiting(): void
