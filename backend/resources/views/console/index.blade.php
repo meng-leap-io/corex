@@ -8,6 +8,63 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    @if(config('nativephp.license'))
+    {{-- NativePHP Desktop Bridge --}}
+    <script>
+        // Inject native bridge into Alpine
+        document.addEventListener('alpine:init', () => {
+            if (typeof window.native !== 'undefined') {
+                // Menu actions handler
+                window.native.on('menu-action', (action) => {
+                    if (window.consoleState) {
+                        switch (action) {
+                            case 'new-file':
+                                window.consoleState.newFile();
+                                break;
+                            case 'open-file':
+                                window.consoleState.openFileDialog();
+                                break;
+                            case 'save-file':
+                                window.consoleState.saveCurrentFile();
+                                break;
+                            case 'save-file-as':
+                                window.consoleState.saveFileAs();
+                                break;
+                            case 'toggle-terminal':
+                                window.consoleState.showTerminal = !window.consoleState.showTerminal;
+                                break;
+                            case 'toggle-chat':
+                                window.consoleState.showChat = !window.consoleState.showChat;
+                                break;
+                            case 'toggle-sidebar':
+                                window.consoleState.showSidebar = !window.consoleState.showSidebar;
+                                break;
+                            case 'open-settings':
+                                window.consoleState.showSettings = true;
+                                break;
+                            case 'new-chat':
+                                window.consoleState.newChat?.();
+                                break;
+                        }
+                    }
+                });
+
+                window.native.on('files-opened', (filePaths) => {
+                    if (window.consoleState) {
+                        filePaths.forEach(p => window.consoleState.loadFileFromPath(p));
+                    }
+                });
+
+                window.native.on('folder-opened', (folderPath) => {
+                    if (window.consoleState) {
+                        window.consoleState.loadFolder(folderPath);
+                    }
+                });
+            }
+        });
+    </script>
+    @endif
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
@@ -116,7 +173,7 @@
     </header>
 
     <div class="flex flex-1 overflow-hidden">
-        <aside class="flex flex-col w-52 shrink-0 border-r"
+        <aside x-show="showSidebar" class="flex flex-col w-52 shrink-0 border-r"
                :class="theme === 'dark' ? 'bg-ide-sidebar border-ide-border' : 'bg-light-sidebar border-light-border'">
             <div class="flex items-center gap-1 px-3 py-1.5 border-b text-xs font-medium uppercase tracking-wider"
                  :class="theme === 'dark' ? 'border-ide-border text-ide-muted' : 'border-light-border text-light-muted'">
@@ -176,6 +233,33 @@
     </div>
 
     @include('console.settings')
+    @include('desktop.drag-drop')
+
+    {{-- Context Menu --}}
+    <div id="context-menu" class="hidden fixed z-50 w-48 rounded-lg border shadow-xl py-1 text-xs"
+         :class="theme === 'dark' ? 'bg-ide-panel border-ide-border' : 'bg-white border-light-border'">
+        <button @click="const t = document.getElementById('context-menu'); t.classList.add('hidden'); openFile(t._target)"
+                class="w-full text-left px-3 py-1.5 transition-colors" :class="theme === 'dark' ? 'hover:bg-ide-hover' : 'hover:bg-light-hover'">
+            Open
+        </button>
+        <button @click="const t = document.getElementById('context-menu'); t.classList.add('hidden'); renameItem(t._target)"
+                class="w-full text-left px-3 py-1.5 transition-colors" :class="theme === 'dark' ? 'hover:bg-ide-hover' : 'hover:bg-light-hover'">
+            Rename
+        </button>
+        <button @click="const t = document.getElementById('context-menu'); t.classList.add('hidden'); deleteItem(t._target)"
+                class="w-full text-left px-3 py-1.5 transition-colors text-red-400" :class="theme === 'dark' ? 'hover:bg-ide-hover' : 'hover:bg-light-hover'">
+            Delete
+        </button>
+        <div class="border-t my-1" :class="theme === 'dark' ? 'border-ide-border' : 'border-light-border'"></div>
+        <button @click="const t = document.getElementById('context-menu'); t.classList.add('hidden'); copyPath(t._target)"
+                class="w-full text-left px-3 py-1.5 transition-colors" :class="theme === 'dark' ? 'hover:bg-ide-hover' : 'hover:bg-light-hover'">
+            Copy Path
+        </button>
+        <button @click="const t = document.getElementById('context-menu'); t.classList.add('hidden'); revealInExplorer(t._target)"
+                class="w-full text-left px-3 py-1.5 transition-colors" :class="theme === 'dark' ? 'hover:bg-ide-hover' : 'hover:bg-light-hover'">
+            Show in Explorer
+        </button>
+    </div>
 
     <script>
         function consoleState() {
@@ -189,6 +273,7 @@
                 lineNumbers: localStorage.getItem('console-line-numbers') || 'on',
                 minimap: localStorage.getItem('console-minimap') !== 'false',
                 keybindings: localStorage.getItem('console-keybindings') || 'default',
+                showSidebar: true,
                 showChat: false,
                 showTerminal: true,
                 showSettings: false,
@@ -341,6 +426,120 @@
                         const content = this.editor?.getValue();
                         if (file) file.content = content;
                     }, 2000);
+                },
+
+                // ── Native Desktop Methods ─────────────────────────────────
+                async loadFileFromPath(filePath) {
+                    try {
+                        const res = await fetch('/_native/files/read?path=' + encodeURIComponent(filePath));
+                        const data = await res.json();
+                        if (data.error) return;
+                        this.openFile({
+                            name: data.name,
+                            path: data.path,
+                            type: 'file',
+                            language: data.language || 'plaintext',
+                            content: data.content,
+                        });
+                    } catch (e) {
+                        console.error('Failed to load file:', e);
+                    }
+                },
+
+                async loadFolder(folderPath) {
+                    try {
+                        const res = await fetch('/_native/files/tree?path=' + encodeURIComponent(folderPath) + '&depth=5');
+                        const data = await res.json();
+                        if (data.children) {
+                            this.files = data.children;
+                        }
+                    } catch (e) {
+                        console.error('Failed to load folder:', e);
+                    }
+                },
+
+                async saveCurrentFile() {
+                    const file = this.activeFile;
+                    if (!file || !this.editor) return;
+                    file.content = this.editor.getValue();
+                    try {
+                        await fetch('/_native/files/write', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ path: file.path, content: file.content }),
+                        });
+                    } catch (e) {
+                        console.error('Failed to save:', e);
+                    }
+                },
+
+                async saveFileAs() {
+                    if (!this.editor) return;
+                    let targetPath = null;
+                    if (window.native) {
+                        const result = await window.native.dialog.saveFile({ title: 'Save As' });
+                        if (!result.canceled) targetPath = result.filePath;
+                    } else {
+                        targetPath = prompt('Save as path:', this.activeFile?.path || '');
+                    }
+                    if (!targetPath) return;
+                    const content = this.editor.getValue();
+                    await fetch('/_native/files/write', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: targetPath, content }),
+                    });
+                    this.openFile({
+                        name: targetPath.split('\\').pop().split('/').pop(),
+                        path: targetPath,
+                        type: 'file',
+                        language: this.detectLang(targetPath),
+                        content,
+                    });
+                },
+
+                async newFile() {
+                    const name = prompt('File name:');
+                    if (!name) return;
+                    const parent = this.currentFolder || '/';
+                    try {
+                        const res = await fetch('/_native/files/create', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ parent, name, type: 'file' }),
+                        });
+                        const data = await res.json();
+                        this.loadFiles();
+                        this.openFile(data);
+                    } catch (e) {
+                        console.error('Failed to create file:', e);
+                    }
+                },
+
+                detectLang(path) {
+                    const ext = path.split('.').pop()?.toLowerCase();
+                    const map = { php: 'php', js: 'javascript', ts: 'typescript', vue: 'html', json: 'json', md: 'markdown', css: 'css', py: 'python', rs: 'rust', go: 'go', yaml: 'yaml', yml: 'yaml', xml: 'xml', sql: 'sql', sh: 'shell', bat: 'bat' };
+                    return map[ext] || 'plaintext';
+                },
+
+                async openFileDialog() {
+                    if (window.native) {
+                        const result = await window.native.dialog.openFile({ multi: true });
+                        if (!result.canceled && result.filePaths) {
+                            result.filePaths.forEach(p => this.loadFileFromPath(p));
+                        }
+                    }
+                },
+
+                openContext(event, item) {
+                    const menu = document.getElementById('context-menu');
+                    if (!menu) return;
+                    menu.style.left = event.clientX + 'px';
+                    menu.style.top = event.clientY + 'px';
+                    menu.classList.remove('hidden');
+                    menu._target = item;
+                    const close = () => { menu.classList.add('hidden'); document.removeEventListener('click', close); };
+                    setTimeout(() => document.addEventListener('click', close), 0);
                 },
 
                 handleKeydown(e) {
