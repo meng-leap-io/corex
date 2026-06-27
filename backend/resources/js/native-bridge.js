@@ -254,6 +254,155 @@ export default function (Alpine) {
       },
     },
 
+    // ── System ───────────────────────────────────────────────────
+    system: {
+      async info() {
+        return nativeFetch('/system/info', { method: 'GET' })
+      },
+      async theme() {
+        return nativeFetch('/system/theme', { method: 'GET' })
+      },
+      async themeCss() {
+        return nativeFetch('/system/theme-css', { method: 'GET' })
+      },
+      async performance() {
+        return nativeFetch('/system/performance', { method: 'GET' })
+      },
+      async systemInfo() {
+        return nativeFetch('/system/system-info', { method: 'GET' })
+      },
+      async services() {
+        return nativeFetch('/system/services', { method: 'GET' })
+      },
+      async proxy() {
+        return nativeFetch('/system/proxy', { method: 'GET' })
+      },
+      async configureProxy(server, bypass = '', enabled = true) {
+        return nativeFetch('/system/proxy/configure', { body: { server, bypass, enabled } })
+      },
+      async disableProxy() {
+        return nativeFetch('/system/proxy/disable')
+      },
+      async notify(title, message, options = {}) {
+        return nativeFetch('/system/notify', { body: { title, message, ...options } })
+      },
+      async clearNotifications() {
+        return nativeFetch('/system/notify/clear')
+      },
+      async eventLog(count = 20) {
+        const params = new URLSearchParams({ count })
+        return nativeFetch(`/system/event-log?${params}`, { method: 'GET' })
+      },
+      async clearEventLog() {
+        return nativeFetch('/system/event-log/clear')
+      },
+      async createShortcut(path, target, options = {}) {
+        return nativeFetch('/system/shortcuts/create', { body: { path, target, ...options } })
+      },
+      async powershell(command) {
+        return nativeFetch('/system/powershell', { body: { command } })
+      },
+      async shell(command) {
+        return nativeFetch('/system/shell', { body: { command } })
+      },
+      async desktop() {
+        return nativeFetch('/system/desktop', { method: 'GET' })
+      },
+    },
+
+    // ── Scheduled Tasks ──────────────────────────────────────────
+    tasks: {
+      async list() {
+        return nativeFetch('/tasks', { method: 'GET' })
+      },
+      async get(taskName) {
+        return nativeFetch(`/tasks/${encodeURIComponent(taskName)}`, { method: 'GET' })
+      },
+      async create(name, script, trigger, options = {}) {
+        return nativeFetch('/tasks/create', { body: { name, script, trigger, ...options } })
+      },
+      async status(taskName) {
+        return nativeFetch(`/tasks/${encodeURIComponent(taskName)}/status`, { method: 'GET' })
+      },
+      async start(taskName) {
+        return nativeFetch(`/tasks/${encodeURIComponent(taskName)}/start`)
+      },
+      async stop(taskName) {
+        return nativeFetch(`/tasks/${encodeURIComponent(taskName)}/stop`)
+      },
+      async enable(taskName) {
+        return nativeFetch(`/tasks/${encodeURIComponent(taskName)}/enable`)
+      },
+      async disable(taskName) {
+        return nativeFetch(`/tasks/${encodeURIComponent(taskName)}/disable`)
+      },
+      async delete(taskName) {
+        return nativeFetch(`/tasks/${encodeURIComponent(taskName)}`, { method: 'DELETE' })
+      },
+      async scheduleBackup(hour = 2, minute = 0) {
+        return nativeFetch('/tasks/schedule/backup', { body: { hour, minute } })
+      },
+      async scheduleHealthCheck(intervalMinutes = 5) {
+        return nativeFetch('/tasks/schedule/health-check', { body: { intervalMinutes } })
+      },
+      async clearAll() {
+        return nativeFetch('/tasks/clear-all')
+      },
+    },
+
+    // ── Shortcuts / File Associations ────────────────────────────
+    shortcuts: {
+      async create(path, target, options = {}) {
+        return nativeFetch('/shortcuts/create', { body: { path, target, ...options } })
+      },
+      async registerProtocol(scheme = 'corex') {
+        return nativeFetch('/shortcuts/register-protocol', { body: { scheme } })
+      },
+      async unregisterProtocol(scheme = 'corex') {
+        return nativeFetch('/shortcuts/unregister-protocol', { body: { scheme } })
+      },
+      async registerAssociation(extension, options = {}) {
+        return nativeFetch('/shortcuts/register-association', { body: { extension, ...options } })
+      },
+      async unregisterAssociation(extension) {
+        return nativeFetch('/shortcuts/unregister-association', { body: { extension } })
+      },
+      async registerContextMenu(extension, label, command, options = {}) {
+        return nativeFetch('/shortcuts/register-context-menu', { body: { extension, label, command, ...options } })
+      },
+      async registerExplorerMenu() {
+        return nativeFetch('/shortcuts/register-explorer-menu')
+      },
+      async unregisterExplorerMenu() {
+        return nativeFetch('/shortcuts/unregister-explorer-menu')
+      },
+      async registerSendTo() {
+        return nativeFetch('/shortcuts/send-to')
+      },
+      async listAssociations() {
+        return nativeFetch('/shortcuts/associations', { method: 'GET' })
+      },
+      async refreshExplorer() {
+        return nativeFetch('/shortcuts/refresh-explorer')
+      },
+    },
+
+    // ── Jump List ────────────────────────────────────────────────
+    jumpList: {
+      async addRecent(path, title) {
+        return nativeFetch('/jump-list/add-recent', { body: { path, title } })
+      },
+      async addTask(title, path, options = {}) {
+        return nativeFetch('/jump-list/add-task', { body: { title, path, ...options } })
+      },
+      async clear() {
+        return nativeFetch('/jump-list/clear')
+      },
+      async recent() {
+        return nativeFetch('/jump-list/recent', { method: 'GET' })
+      },
+    },
+
     // ── Events from Main Process ─────────────────────────────────
     on(channel, handler) {
       if (hasNativeBridge) return window.native.on(channel, handler)
