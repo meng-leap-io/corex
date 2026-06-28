@@ -57,6 +57,7 @@ from app.core.health import (
     check_disk,
     check_uptime,
     check_ollama,
+    check_database,
     get_health_response,
 )
 from app.services.agents.orchestrator import AgentOrchestrator
@@ -183,11 +184,35 @@ async def lifespan(app: FastAPI):
 
     logger.info("health_checks_registered", count=len(health_registry._checks))
 
+    # Initialize Supabase connection pool
+    try:
+        from app.core.supabase import supabase_pool
+        from app.db.migrations import run_migrations, run_indexes
+
+        await supabase_pool.connect()
+        health_registry.register("supabase", check_database)
+
+        # Auto-migrate tables and indexes on startup
+        await run_migrations()
+        await run_indexes()
+
+        logger.info("supabase_initialized")
+    except Exception as e:
+        logger.warning("supabase_init_failed", error=str(e))
+
     if IS_WINDOWS:
         write_event_log("AI Gateway started", level="info", event_id=100)
         logger.info("windows_event_log_initialized")
 
     yield
+
+    # Gracefully close Supabase pool
+    try:
+        from app.core.supabase import supabase_pool
+        await supabase_pool.close()
+        logger.info("supabase_pool_closed")
+    except Exception as e:
+        logger.warning("supabase_close_error", error=str(e))
 
     if IS_WINDOWS:
         write_event_log("AI Gateway shutting down", level="info", event_id=200)
