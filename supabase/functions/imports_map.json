@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "std/server": "https://deno.land/std@0.177.0/http/server.ts",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.0",
+    "postgres": "https://deno.land/x/postgres@v0.17.0/mod.ts",
+    "djwt": "https://deno.land/x/djwt@v2.8/mod.ts",
+    "nacl": "https://esm.sh/tweetnacl@1.0.3",
+    "nacl-util": "https://esm.sh/tweetnacl-util@0.15.1"
+  }
+}
