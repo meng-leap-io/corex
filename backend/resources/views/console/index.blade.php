@@ -65,6 +65,8 @@
         });
     </script>
     @endif
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="{{ asset('js/supabase-realtime.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
@@ -576,6 +578,19 @@
         document.addEventListener('alpine:init', () => {
             Alpine.data('fileExplorer', () => ({}));
         });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.SupabaseRealtime && window.sbRealtimeConfig) {
+                window.SupabaseRealtime.init(window.sbRealtimeConfig);
+            }
+        });
+    </script>
+
+    <script>
+        window.sbRealtimeConfig = @json($realtimeConfig ?? null);
+        window.USER_ID = '{{ auth()->id() ?? '' }}';
+        window.SUPABASE_URL = '{{ config('supabase.url') }}';
+        window.SUPABASE_ANON_KEY = '{{ config('supabase.key') }}';
     </script>
 </body>
 </html>

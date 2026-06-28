@@ -17,6 +17,8 @@
     <title>@yield('title', config('app.name', 'Corex') . ' Desktop')</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="{{ asset('js/supabase-realtime.js') }}"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
         tailwind.config = {
@@ -296,6 +298,19 @@
                 },
             }
         }
+    </script>
+
+    <script>
+        window.sbRealtimeConfig = @json($realtimeConfig ?? null);
+        window.USER_ID = '{{ auth()->id() ?? '' }}';
+        window.SUPABASE_URL = '{{ config('supabase.url') }}';
+        window.SUPABASE_ANON_KEY = '{{ config('supabase.key') }}';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.SupabaseRealtime && window.sbRealtimeConfig) {
+                window.SupabaseRealtime.init(window.sbRealtimeConfig);
+            }
+        });
     </script>
 
     @stack('scripts')

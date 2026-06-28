@@ -1,4 +1,7 @@
-<div class="flex flex-col h-full" x-data="chatPanel()" x-init="init()">
+@if(config('supabase.realtime.livewire_chat', false))
+    @livewire('chat.real-time-chat')
+@else
+<div class="flex flex-col h-full" x-data="chatPanel()" x-init="init()"
     <div class="flex items-center justify-between px-4 py-2 border-b shrink-0"
          :class="theme === 'dark' ? 'border-ide-border' : 'border-light-border'">
         <span class="text-xs font-semibold uppercase tracking-wider"
@@ -276,3 +279,4 @@
         }
     </script>
 </div>
+@endif
