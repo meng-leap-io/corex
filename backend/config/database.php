@@ -43,6 +43,28 @@ return [
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
             ],
         ],
+
+        'supabase' => [
+            'driver' => 'pgsql',
+            'host' => env('SUPABASE_DB_HOST', 'aws-0-us-east-1.pooler.supabase.com'),
+            'port' => env('SUPABASE_DB_PORT', '6543'),
+            'database' => env('SUPABASE_DB_DATABASE', 'postgres'),
+            'username' => env('SUPABASE_DB_USERNAME', 'iprhzagvffgpfihrmeqd'),
+            'password' => env('SUPABASE_DB_PASSWORD'),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => env('SUPABASE_DB_SCHEMA', 'public'),
+            'sslmode' => env('SUPABASE_DB_SSLMODE', 'require'),
+            'options' => [
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_STRINGIFY_FETCHES => false,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
+                PDO::ATTR_CASE => PDO::CASE_NATURAL,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_ORACLE_NULLS => PDO::NULL_NATURAL,
+            ],
+        ],
     ],
     'migrations' => [
         'table' => 'migrations',
