@@ -105,7 +105,7 @@ class SystemController extends Controller
             'actions.*.arguments' => 'required|string|max:500',
         ]);
 
-        $sent = !empty($validated['actions'])
+        $sent = ! empty($validated['actions'])
             ? ToastNotificationService::sendWithActions(
                 $validated['title'],
                 $validated['message'],
@@ -123,12 +123,14 @@ class SystemController extends Controller
     public function notifyClear(): JsonResponse
     {
         ToastNotificationService::clear();
+
         return response()->json(['cleared' => true]);
     }
 
     public function eventLog(Request $request): JsonResponse
     {
         $count = min((int) $request->input('count', 20), 100);
+
         return response()->json([
             'events' => EventLogService::getRecent($count),
         ]);
@@ -137,6 +139,7 @@ class SystemController extends Controller
     public function eventLogClear(): JsonResponse
     {
         EventLogService::clear();
+
         return response()->json(['cleared' => true]);
     }
 
@@ -169,6 +172,7 @@ class SystemController extends Controller
             'command' => 'required|string|max:5000',
         ]);
         $output = ComService::powershell($validated['command']);
+
         return response()->json(['output' => $output]);
     }
 
@@ -178,6 +182,7 @@ class SystemController extends Controller
             'command' => 'required|string|max:5000',
         ]);
         $output = ComService::shell($validated['command']);
+
         return response()->json(['output' => $output]);
     }
 

@@ -12,11 +12,27 @@ abstract class BroadcastEvent
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    private static ?\Closure $channelResolver = null;
+
     public function __construct(
         protected readonly string $channel,
         protected readonly string $event,
         protected readonly array $payload,
     ) {}
+
+    public static function resolveChannelUsing(\Closure $resolver): void
+    {
+        self::$channelResolver = $resolver;
+    }
+
+    public function resolveChannel(): string
+    {
+        if (self::$channelResolver !== null) {
+            return (self::$channelResolver)($this);
+        }
+
+        return $this->channel;
+    }
 
     public function channel(): string
     {

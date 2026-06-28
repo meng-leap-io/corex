@@ -39,7 +39,7 @@ class ApiKey extends Model
     {
         static::creating(function (ApiKey $apiKey) {
             if (empty($apiKey->key)) {
-                $apiKey->key = 'corex_' . Str::random(64);
+                $apiKey->key = 'corex_'.Str::random(64);
             }
             if (empty($apiKey->permissions)) {
                 $apiKey->permissions = ['read'];
@@ -79,12 +79,12 @@ class ApiKey extends Model
 
     public function getKeyPrefixAttribute(): string
     {
-        return substr($this->key, 0, 8) . '...';
+        return substr($this->key, 0, 8).'...';
     }
 
     public function getIsActiveAttribute(): bool
     {
-        return !$this->isExpired();
+        return ! $this->isExpired();
     }
 
     public function scopeActive(Builder $query): Builder

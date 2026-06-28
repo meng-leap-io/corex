@@ -28,7 +28,7 @@ class ProxySettingsService
 
     public static function getProxyForUrl(string $url): ?string
     {
-        if (!self::isProxyEnabled()) {
+        if (! self::isProxyEnabled()) {
             return null;
         }
 
@@ -40,7 +40,7 @@ class ProxySettingsService
             return null;
         }
 
-        if (!$server) {
+        if (! $server) {
             return null;
         }
 
@@ -60,9 +60,9 @@ class ProxySettingsService
                 continue;
             }
             if ($pattern === '<local>') {
-                return !str_contains($host, '.');
+                return ! str_contains($host, '.');
             }
-            $regex = '/^' . preg_quote($pattern, '/') . '$/i';
+            $regex = '/^'.preg_quote($pattern, '/').'$/i';
             $regex = str_replace('\*', '.*', $regex);
             if (preg_match($regex, $host)) {
                 return true;
@@ -75,7 +75,7 @@ class ProxySettingsService
     public static function configureHttpClient(): array
     {
         $proxy = self::getProxyForUrl('https://api.corex.dev');
-        if (!$proxy) {
+        if (! $proxy) {
             return [];
         }
 
@@ -83,15 +83,15 @@ class ProxySettingsService
         $config = [];
 
         if (isset($parts['host'])) {
-            $proxyUrl = 'http://' . $parts['host'];
+            $proxyUrl = 'http://'.$parts['host'];
             if (isset($parts['port'])) {
-                $proxyUrl .= ':' . $parts['port'];
+                $proxyUrl .= ':'.$parts['port'];
             }
             $config['proxy'] = $proxyUrl;
         }
 
         if (isset($parts['user']) && isset($parts['pass'])) {
-            $config['proxy_auth'] = $parts['user'] . ':' . $parts['pass'];
+            $config['proxy_auth'] = $parts['user'].':'.$parts['pass'];
         }
 
         return $config;
@@ -99,7 +99,7 @@ class ProxySettingsService
 
     public static function set(string $server, string $bypass = '', bool $enabled = true): bool
     {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return false;
         }
 
@@ -129,6 +129,7 @@ class ProxySettingsService
         }
 
         self::notifyChange();
+
         return true;
     }
 
@@ -150,10 +151,12 @@ class ProxySettingsService
                 }
             }
             $previous = $current;
+
             return $changed;
         }
 
         $previous = $current;
+
         return null;
     }
 
@@ -170,8 +173,8 @@ class ProxySettingsService
 
         ComService::powershell(
             'Remove-Item -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Connections"'
-            . ' -Recurse -Force -ErrorAction SilentlyContinue;'
-            . '$null = [System.Net.WebRequest]::DefaultWebProxy'
+            .' -Recurse -Force -ErrorAction SilentlyContinue;'
+            .'$null = [System.Net.WebRequest]::DefaultWebProxy'
         );
     }
 }

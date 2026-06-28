@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Supabase;
 
 use App\Contracts\SupabaseStorageContract;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -48,7 +47,7 @@ class SupabaseStorageService implements SupabaseStorageContract
         }
 
         $upsert = $options['upsert'] ?? true;
-        $endpoint = "{$this->url}/storage/v1/object/{$bucket}/{$path}?upsert=" . ($upsert ? 'true' : 'false');
+        $endpoint = "{$this->url}/storage/v1/object/{$bucket}/{$path}?upsert=".($upsert ? 'true' : 'false');
 
         $response = Http::withHeaders($headers)
             ->withBody($contents, $headers['Content-Type'])
@@ -117,7 +116,7 @@ class SupabaseStorageService implements SupabaseStorageContract
                 'prefixes' => $paths,
             ]);
 
-        return !$response->failed();
+        return ! $response->failed();
     }
 
     public function listFiles(string $bucket, string $directory = ''): array
@@ -336,8 +335,8 @@ class SupabaseStorageService implements SupabaseStorageContract
     public function uploadFromFile(string $bucket, string $path, UploadedFile $file, array $options = []): string
     {
         $uniquePath = $options['unique'] ?? true
-            ? $path . '/' . Str::random(40) . '.' . $file->getClientOriginalExtension()
-            : $path . '/' . $file->getClientOriginalName();
+            ? $path.'/'.Str::random(40).'.'.$file->getClientOriginalExtension()
+            : $path.'/'.$file->getClientOriginalName();
 
         return $this->upload($bucket, $uniquePath, $file, $options);
     }

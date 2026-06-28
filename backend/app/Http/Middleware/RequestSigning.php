@@ -12,7 +12,9 @@ use Symfony\Component\HttpFoundation\Response;
 class RequestSigning
 {
     private const HEADER_TIMESTAMP = 'X-Timestamp';
+
     private const HEADER_SIGNATURE = 'X-Signature';
+
     private const MAX_CLOCK_SKEW = 300;
 
     public function handle(Request $request, Closure $next): Response
@@ -24,7 +26,7 @@ class RequestSigning
         $signature = $request->header(self::HEADER_SIGNATURE);
         $timestamp = $request->header(self::HEADER_TIMESTAMP);
 
-        if (!$signature || !$timestamp) {
+        if (! $signature || ! $timestamp) {
             Log::warning('security.missing_request_signature', [
                 'ip' => $request->ip(),
                 'path' => $request->path(),
@@ -37,7 +39,7 @@ class RequestSigning
             ], 401);
         }
 
-        if (!$this->isTimestampValid($timestamp)) {
+        if (! $this->isTimestampValid($timestamp)) {
             Log::warning('security.stale_request_signature', [
                 'ip' => $request->ip(),
                 'timestamp' => $timestamp,
@@ -49,7 +51,7 @@ class RequestSigning
             ], 401);
         }
 
-        if (!$this->isSignatureValid($request, $signature)) {
+        if (! $this->isSignatureValid($request, $signature)) {
             Log::warning('security.invalid_request_signature', [
                 'ip' => $request->ip(),
                 'path' => $request->path(),
@@ -94,7 +96,7 @@ class RequestSigning
     private function isSignatureValid(Request $request, string $signature): bool
     {
         $secret = config('app.key');
-        if (!$secret) {
+        if (! $secret) {
             return false;
         }
 

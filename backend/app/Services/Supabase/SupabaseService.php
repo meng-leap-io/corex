@@ -144,6 +144,7 @@ class SupabaseService
     {
         try {
             $this->get('/rest/v1/', []);
+
             return true;
         } catch (\Throwable) {
             return false;

@@ -9,14 +9,11 @@ use App\Models\AnalyticsEvent;
 use App\Models\FeatureUsage;
 use App\Models\PageView;
 use App\Models\PerformanceSnapshot;
-use App\Models\User;
 use App\Services\Analytics\AnalyticsService;
 use App\Services\Analytics\PerformanceService;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
@@ -57,7 +54,7 @@ class AdminController extends Controller
                 DB::raw('SUM(completion_tokens) as total_completion_tokens'),
                 DB::raw('SUM(cost) as total_cost'),
                 DB::raw('AVG(duration) as avg_duration_ms'),
-                DB::raw("COUNT(*) FILTER (WHERE success = false) as error_count"),
+                DB::raw('COUNT(*) FILTER (WHERE success = false) as error_count'),
             )
             ->groupBy('date')
             ->orderBy('date')

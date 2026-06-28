@@ -5,7 +5,6 @@ namespace Tests\Unit\Services;
 use App\Models\User;
 use App\Services\AIService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class AIServiceTest extends TestCase
@@ -17,7 +16,7 @@ class AIServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->aiService = new AIService();
+        $this->aiService = $this->app->make(AIService::class);
     }
 
     public function test_can_calculate_cost_for_gpt4(): void

@@ -12,6 +12,8 @@ class CustomMetric extends Model
 {
     use HasFactory, HasUuids;
 
+    const CREATED_AT = 'recorded_at';
+
     const UPDATED_AT = null;
 
     const TYPE_GAUGE = 'gauge';
@@ -43,7 +45,7 @@ class CustomMetric extends Model
 
     public function scopeWithTag($query, string $key, string $value)
     {
-        return $query->where('tags->' . $key, $value);
+        return $query->where('tags->'.$key, $value);
     }
 
     public function scopeFromSource($query, string $source)

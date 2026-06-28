@@ -13,8 +13,11 @@ class Profile extends Model
     use HasFactory, HasUuids;
 
     public const NOTIFICATION_DIGEST_DAILY = 'daily';
+
     public const NOTIFICATION_DIGEST_WEEKLY = 'weekly';
+
     public const NOTIFICATION_DIGEST_MONTHLY = 'monthly';
+
     public const NOTIFICATION_DIGEST_NONE = 'none';
 
     public const NOTIFICATION_DIGESTS = [
@@ -110,6 +113,7 @@ class Profile extends Model
         foreach ($skills as $skill) {
             $query->whereJsonContains('skills', $skill);
         }
+
         return $query;
     }
 
@@ -118,6 +122,7 @@ class Profile extends Model
         foreach ($expertise as $area) {
             $query->whereJsonContains('expertise', $area);
         }
+
         return $query;
     }
 

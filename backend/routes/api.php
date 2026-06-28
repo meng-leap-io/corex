@@ -1,8 +1,17 @@
 <?php
 
+use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AIController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\FileController;
+use App\Http\Controllers\Api\ProjectController;
+use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\WebhookController;
+use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -55,74 +64,74 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/supabase/logout', [AuthController::class, 'supabaseLogout']);
 
     Route::get('/user', function (Request $request) {
-        return new \App\Http\Resources\UserResource($request->user());
+        return new UserResource($request->user());
     });
 
     Route::get('/user/profile', [UserController::class, 'profile']);
     Route::put('/user/profile', [UserController::class, 'updateProfile']);
 
-    Route::apiResource('projects', \App\Http\Controllers\Api\ProjectController::class)
+    Route::apiResource('projects', ProjectController::class)
         ->except(['create', 'edit']);
 
     Route::post('/projects/{project}/duplicate', [
-        \App\Http\Controllers\Api\ProjectController::class, 'duplicate',
+        ProjectController::class, 'duplicate',
     ]);
 
     Route::get('/conversations', [
-        \App\Http\Controllers\Api\ConversationController::class, 'index',
+        ConversationController::class, 'index',
     ]);
     Route::post('/conversations', [
-        \App\Http\Controllers\Api\ConversationController::class, 'store',
+        ConversationController::class, 'store',
     ]);
     Route::get('/conversations/{conversation}', [
-        \App\Http\Controllers\Api\ConversationController::class, 'show',
+        ConversationController::class, 'show',
     ]);
     Route::delete('/conversations/{conversation}', [
-        \App\Http\Controllers\Api\ConversationController::class, 'destroy',
+        ConversationController::class, 'destroy',
     ]);
 
     // File storage
     Route::prefix('files')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Api\FileController::class, 'index']);
-        Route::post('/', [\App\Http\Controllers\Api\FileController::class, 'store']);
-        Route::get('/{file}', [\App\Http\Controllers\Api\FileController::class, 'show']);
-        Route::delete('/{file}', [\App\Http\Controllers\Api\FileController::class, 'destroy']);
-        Route::get('/{file}/download', [\App\Http\Controllers\Api\FileController::class, 'download']);
-        Route::post('/{file}/share', [\App\Http\Controllers\Api\FileController::class, 'share']);
-        Route::post('/avatar', [\App\Http\Controllers\Api\FileController::class, 'uploadAvatar']);
-        Route::get('/buckets', [\App\Http\Controllers\Api\FileController::class, 'buckets']);
-        Route::get('/remote', [\App\Http\Controllers\Api\FileController::class, 'listRemote']);
+        Route::get('/', [FileController::class, 'index']);
+        Route::post('/', [FileController::class, 'store']);
+        Route::get('/{file}', [FileController::class, 'show']);
+        Route::delete('/{file}', [FileController::class, 'destroy']);
+        Route::get('/{file}/download', [FileController::class, 'download']);
+        Route::post('/{file}/share', [FileController::class, 'share']);
+        Route::post('/avatar', [FileController::class, 'uploadAvatar']);
+        Route::get('/buckets', [FileController::class, 'buckets']);
+        Route::get('/remote', [FileController::class, 'listRemote']);
     });
 
-    Route::get('/files/shared/{token}', [\App\Http\Controllers\Api\FileController::class, 'shared']);
+    Route::get('/files/shared/{token}', [FileController::class, 'shared']);
 
     // AI usage stats
-    Route::get('/ai/usage', [\App\Http\Controllers\Api\AIController::class, 'usage']);
-    Route::get('/ai/usage/daily', [\App\Http\Controllers\Api\AIController::class, 'dailyUsage']);
+    Route::get('/ai/usage', [AIController::class, 'usage']);
+    Route::get('/ai/usage/daily', [AIController::class, 'dailyUsage']);
 
     // Team and sharing endpoints
     Route::prefix('teams')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Api\TeamController::class, 'index']);
-        Route::post('/', [\App\Http\Controllers\Api\TeamController::class, 'store']);
-        Route::get('/{team}', [\App\Http\Controllers\Api\TeamController::class, 'show']);
-        Route::put('/{team}', [\App\Http\Controllers\Api\TeamController::class, 'update']);
-        Route::delete('/{team}', [\App\Http\Controllers\Api\TeamController::class, 'destroy']);
-        Route::post('/{team}/members', [\App\Http\Controllers\Api\TeamController::class, 'addMember']);
-        Route::delete('/{team}/members/{user}', [\App\Http\Controllers\Api\TeamController::class, 'removeMember']);
-        Route::put('/{team}/members/{user}/role', [\App\Http\Controllers\Api\TeamController::class, 'updateMemberRole']);
-        Route::post('/{team}/projects/{project}', [\App\Http\Controllers\Api\TeamController::class, 'addProject']);
-        Route::delete('/{team}/projects/{project}', [\App\Http\Controllers\Api\TeamController::class, 'removeProject']);
+        Route::get('/', [TeamController::class, 'index']);
+        Route::post('/', [TeamController::class, 'store']);
+        Route::get('/{team}', [TeamController::class, 'show']);
+        Route::put('/{team}', [TeamController::class, 'update']);
+        Route::delete('/{team}', [TeamController::class, 'destroy']);
+        Route::post('/{team}/members', [TeamController::class, 'addMember']);
+        Route::delete('/{team}/members/{user}', [TeamController::class, 'removeMember']);
+        Route::put('/{team}/members/{user}/role', [TeamController::class, 'updateMemberRole']);
+        Route::post('/{team}/projects/{project}', [TeamController::class, 'addProject']);
+        Route::delete('/{team}/projects/{project}', [TeamController::class, 'removeProject']);
     });
 
     // Project sharing
     Route::prefix('projects/{project}/sharing')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Api\ProjectController::class, 'sharingSettings']);
-        Route::put('/', [\App\Http\Controllers\Api\ProjectController::class, 'updateSharing']);
-        Route::post('/members', [\App\Http\Controllers\Api\ProjectController::class, 'addMember']);
-        Route::delete('/members/{user}', [\App\Http\Controllers\Api\ProjectController::class, 'removeMember']);
-        Route::put('/members/{user}/role', [\App\Http\Controllers\Api\ProjectController::class, 'updateMemberRole']);
-        Route::post('/make-public', [\App\Http\Controllers\Api\ProjectController::class, 'makePublic']);
-        Route::post('/make-private', [\App\Http\Controllers\Api\ProjectController::class, 'makePrivate']);
+        Route::get('/', [ProjectController::class, 'sharingSettings']);
+        Route::put('/', [ProjectController::class, 'updateSharing']);
+        Route::post('/members', [ProjectController::class, 'addMember']);
+        Route::delete('/members/{user}', [ProjectController::class, 'removeMember']);
+        Route::put('/members/{user}/role', [ProjectController::class, 'updateMemberRole']);
+        Route::post('/make-public', [ProjectController::class, 'makePublic']);
+        Route::post('/make-private', [ProjectController::class, 'makePrivate']);
     });
 
     // Rate limited admin routes (admin role required)
@@ -131,13 +140,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/users/{user}', [UserController::class, 'show']);
         Route::put('/admin/users/{user}', [UserController::class, 'update']);
         Route::delete('/admin/users/{user}', [UserController::class, 'delete']);
-        Route::get('/admin/stats', [\App\Http\Controllers\Api\AdminController::class, 'stats']);
-        Route::get('/admin/usage', [\App\Http\Controllers\Api\AdminController::class, 'usage']);
-        Route::get('/admin/health', [\App\Http\Controllers\Api\AdminController::class, 'health']);
-        Route::get('/admin/analytics/events', [\App\Http\Controllers\Api\AdminController::class, 'analyticsEvents']);
-        Route::get('/admin/analytics/features', [\App\Http\Controllers\Api\AdminController::class, 'featureUsage']);
-        Route::get('/admin/analytics/snapshots', [\App\Http\Controllers\Api\AdminController::class, 'performanceSnapshots']);
-        Route::get('/admin/analytics/page-views', [\App\Http\Controllers\Api\AdminController::class, 'pageViews']);
+        Route::get('/admin/stats', [AdminController::class, 'stats']);
+        Route::get('/admin/usage', [AdminController::class, 'usage']);
+        Route::get('/admin/health', [AdminController::class, 'health']);
+        Route::get('/admin/analytics/events', [AdminController::class, 'analyticsEvents']);
+        Route::get('/admin/analytics/features', [AdminController::class, 'featureUsage']);
+        Route::get('/admin/analytics/snapshots', [AdminController::class, 'performanceSnapshots']);
+        Route::get('/admin/analytics/page-views', [AdminController::class, 'pageViews']);
     });
 });
 
@@ -148,7 +157,7 @@ Route::middleware(['jwt.auth', 'throttle:ai'])->prefix('v1')->group(function () 
         $gatewayUrl = config('services.ai-gateway.url');
         $gatewayKey = config('services.ai-gateway.key');
 
-        $response = \Illuminate\Support\Facades\Http::withHeaders([
+        $response = Http::withHeaders([
             'Authorization' => "Bearer {$gatewayKey}",
             'Content-Type' => 'application/json',
         ])->post("{$gatewayUrl}/v1/chat/completions", $body);
@@ -164,7 +173,7 @@ Route::middleware(['jwt.auth', 'throttle:ai'])->prefix('v1')->group(function () 
         $gatewayUrl = config('services.ai-gateway.url');
         $gatewayKey = config('services.ai-gateway.key');
 
-        $response = \Illuminate\Support\Facades\Http::withHeaders([
+        $response = Http::withHeaders([
             'Authorization' => "Bearer {$gatewayKey}",
             'Content-Type' => 'application/json',
         ])->post("{$gatewayUrl}/v1/embeddings", $body);
@@ -177,25 +186,25 @@ Route::middleware(['jwt.auth', 'throttle:ai'])->prefix('v1')->group(function () 
 });
 
 // ── Webhook Endpoints (no CSRF, external services POST here) ────────────
-Route::post('/webhooks/stripe', [\App\Http\Controllers\Api\WebhookController::class, 'stripe'])
+Route::post('/webhooks/stripe', [WebhookController::class, 'stripe'])
     ->name('webhooks.stripe');
-Route::post('/webhooks/resend', [\App\Http\Controllers\Api\WebhookController::class, 'resend'])
+Route::post('/webhooks/resend', [WebhookController::class, 'resend'])
     ->name('webhooks.resend');
-Route::post('/webhooks/github', [\App\Http\Controllers\Api\WebhookController::class, 'github'])
+Route::post('/webhooks/github', [WebhookController::class, 'github'])
     ->name('webhooks.github');
-Route::post('/webhooks/supabase', [\App\Http\Controllers\Api\WebhookController::class, 'supabase'])
+Route::post('/webhooks/supabase', [WebhookController::class, 'supabase'])
     ->name('webhooks.supabase');
-Route::post('/webhooks/{provider}', [\App\Http\Controllers\Api\WebhookController::class, 'generic'])
+Route::post('/webhooks/{provider}', [WebhookController::class, 'generic'])
     ->name('webhooks.generic');
 
 // ── Edge Function invocation (authenticated) ─────────────────────────────
 Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
-    Route::post('/edge-functions/invoke', [\App\Http\Controllers\Api\WebhookController::class, 'invokeFunction'])
+    Route::post('/edge-functions/invoke', [WebhookController::class, 'invokeFunction'])
         ->name('edge-functions.invoke');
-    Route::post('/webhooks/{logId}/retry', [\App\Http\Controllers\Api\WebhookController::class, 'retry'])
+    Route::post('/webhooks/{logId}/retry', [WebhookController::class, 'retry'])
         ->name('webhooks.retry');
-    Route::post('/webhooks/retry-all', [\App\Http\Controllers\Api\WebhookController::class, 'retryAll'])
+    Route::post('/webhooks/retry-all', [WebhookController::class, 'retryAll'])
         ->name('webhooks.retry-all');
-    Route::get('/webhooks/stats', [\App\Http\Controllers\Api\WebhookController::class, 'stats'])
+    Route::get('/webhooks/stats', [WebhookController::class, 'stats'])
         ->name('webhooks.stats');
 });

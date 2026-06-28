@@ -22,7 +22,7 @@ class RlsContextServiceTest extends TestCase
 
     public function test_sets_user_context(): void
     {
-        if (!$this->canConnectToPgsql()) {
+        if (! $this->canConnectToPgsql()) {
             $this->markTestSkipped('PostgreSQL connection not available');
         }
 
@@ -37,7 +37,7 @@ class RlsContextServiceTest extends TestCase
 
     public function test_sets_admin_context(): void
     {
-        if (!$this->canConnectToPgsql()) {
+        if (! $this->canConnectToPgsql()) {
             $this->markTestSkipped('PostgreSQL connection not available');
         }
 
@@ -51,7 +51,7 @@ class RlsContextServiceTest extends TestCase
 
     public function test_sets_guest_context(): void
     {
-        if (!$this->canConnectToPgsql()) {
+        if (! $this->canConnectToPgsql()) {
             $this->markTestSkipped('PostgreSQL connection not available');
         }
 
@@ -64,7 +64,7 @@ class RlsContextServiceTest extends TestCase
 
     public function test_sets_system_context(): void
     {
-        if (!$this->canConnectToPgsql()) {
+        if (! $this->canConnectToPgsql()) {
             $this->markTestSkipped('PostgreSQL connection not available');
         }
 
@@ -76,7 +76,7 @@ class RlsContextServiceTest extends TestCase
 
     public function test_clears_context(): void
     {
-        if (!$this->canConnectToPgsql()) {
+        if (! $this->canConnectToPgsql()) {
             $this->markTestSkipped('PostgreSQL connection not available');
         }
 
@@ -90,7 +90,7 @@ class RlsContextServiceTest extends TestCase
 
     public function test_executes_callback_with_context(): void
     {
-        if (!$this->canConnectToPgsql()) {
+        if (! $this->canConnectToPgsql()) {
             $this->markTestSkipped('PostgreSQL connection not available');
         }
 
@@ -107,7 +107,7 @@ class RlsContextServiceTest extends TestCase
 
     public function test_executes_as_system(): void
     {
-        if (!$this->canConnectToPgsql()) {
+        if (! $this->canConnectToPgsql()) {
             $this->markTestSkipped('PostgreSQL connection not available');
         }
 

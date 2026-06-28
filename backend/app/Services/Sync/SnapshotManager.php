@@ -55,7 +55,7 @@ class SnapshotManager
     {
         $snapshot = SyncSnapshot::find($snapshotId);
 
-        if (!$snapshot) {
+        if (! $snapshot) {
             Log::warning('sync.snapshot.not_found', ['snapshot_id' => $snapshotId]);
 
             return null;
@@ -63,7 +63,7 @@ class SnapshotManager
 
         $modelClass = config("supabase.sync.model_map.{$snapshot->table_name}");
 
-        if (!$modelClass || !class_exists($modelClass)) {
+        if (! $modelClass || ! class_exists($modelClass)) {
             Log::error('sync.snapshot.model_not_found', [
                 'table' => $snapshot->table_name,
                 'snapshot_id' => $snapshotId,

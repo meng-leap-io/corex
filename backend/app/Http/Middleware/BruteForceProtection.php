@@ -13,14 +13,17 @@ use Symfony\Component\HttpFoundation\Response;
 class BruteForceProtection
 {
     private const MAX_ATTEMPTS = 5;
+
     private const DECAY_SECONDS = 60;
+
     private const BLOCK_DURATION_MINUTES = 15;
+
     private const BLOCK_THRESHOLD = 3;
 
     public function handle(Request $request, Closure $next): Response
     {
         $key = $this->buildKey($request);
-        $blockKey = $key . ':blocked';
+        $blockKey = $key.':blocked';
 
         if (Cache::get($blockKey, false)) {
             Log::warning('security.brute_force_blocked', [
@@ -72,6 +75,6 @@ class BruteForceProtection
             ? md5(strtolower($request->input('email')))
             : $request->ip();
 
-        return 'bf:' . $request->path() . ':' . $identifier;
+        return 'bf:'.$request->path().':'.$identifier;
     }
 }

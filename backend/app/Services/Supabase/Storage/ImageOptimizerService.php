@@ -6,7 +6,6 @@ namespace App\Services\Supabase\Storage;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ImageOptimizerService
 {
@@ -18,7 +17,7 @@ class ImageOptimizerService
 
     public function optimize(UploadedFile $file, array $options = []): ?string
     {
-        if (!extension_loaded('gd')) {
+        if (! extension_loaded('gd')) {
             Log::warning('image.gd_not_loaded', ['message' => 'GD extension required for image optimization']);
 
             return null;
@@ -26,7 +25,7 @@ class ImageOptimizerService
 
         $mimeType = $file->getMimeType();
 
-        if (!$this->isSupported($mimeType)) {
+        if (! $this->isSupported($mimeType)) {
             return null;
         }
 
@@ -42,7 +41,7 @@ class ImageOptimizerService
             $image = $this->crop($image, $options);
         }
 
-        $outputPath = tempnam(sys_get_temp_dir(), 'img_opt_') . '.webp';
+        $outputPath = tempnam(sys_get_temp_dir(), 'img_opt_').'.webp';
 
         imagewebp($image, $outputPath, $options['quality'] ?? self::QUALITY);
 
@@ -53,7 +52,7 @@ class ImageOptimizerService
 
     public function optimizeFromPath(string $sourcePath, string $outputPath, array $options = []): bool
     {
-        if (!extension_loaded('gd')) {
+        if (! extension_loaded('gd')) {
             Log::warning('image.gd_not_loaded');
 
             return false;
@@ -61,7 +60,7 @@ class ImageOptimizerService
 
         $mimeType = mime_content_type($sourcePath);
 
-        if (!$this->isSupported($mimeType)) {
+        if (! $this->isSupported($mimeType)) {
             return false;
         }
 
@@ -82,12 +81,12 @@ class ImageOptimizerService
 
     public function createAvatar(string $sourcePath, int $size = 256): ?string
     {
-        return $this->optimizeFromPath($sourcePath, tempnam(sys_get_temp_dir(), 'avatar_') . '.webp', [
+        return $this->optimizeFromPath($sourcePath, tempnam(sys_get_temp_dir(), 'avatar_').'.webp', [
             'max_width' => $size,
             'max_height' => $size,
             'quality' => 90,
             'transforms' => ['crop'],
-        ]) ? tempnam(sys_get_temp_dir(), 'avatar_') . '.webp' : null;
+        ]) ? tempnam(sys_get_temp_dir(), 'avatar_').'.webp' : null;
     }
 
     private function createImageFromFile(string $path, string $mimeType): ?\GdImage

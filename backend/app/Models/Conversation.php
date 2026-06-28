@@ -16,7 +16,9 @@ class Conversation extends Model
     use HasFactory, HasUuids;
 
     public const string PROVIDER_OPENAI = 'openai';
+
     public const string PROVIDER_ANTHROPIC = 'anthropic';
+
     public const string PROVIDER_GOOGLE = 'google';
 
     public const array PROVIDERS = [
@@ -30,25 +32,29 @@ class Conversation extends Model
         'project_id',
         'title',
         'model_used',
+        'messages',
         'tokens_used',
         'total_cost',
+        'archived_at',
     ];
 
     protected function casts(): array
     {
         return [
+            'messages' => 'array',
             'tokens_used' => 'integer',
             'total_cost' => 'decimal:6',
+            'archived_at' => 'datetime',
         ];
     }
 
     protected static function booted(): void
     {
         static::creating(function (Conversation $conversation) {
-            if (!isset($conversation->tokens_used)) {
+            if (! isset($conversation->tokens_used)) {
                 $conversation->tokens_used = 0;
             }
-            if (!isset($conversation->total_cost)) {
+            if (! isset($conversation->total_cost)) {
                 $conversation->total_cost = 0;
             }
         });
@@ -101,5 +107,25 @@ class Conversation extends Model
     public function scopeWithHighTokens(Builder $query, int $threshold = 1000): Builder
     {
         return $query->where('tokens_used', '>=', $threshold);
+    }
+
+    public function archive(): void
+    {
+        $this->update(['archived_at' => now()]);
+    }
+
+    public function scopeArchived(Builder $query): Builder
+    {
+        return $query->whereNotNull('archived_at');
+    }
+
+    public function scopeWithoutArchived(Builder $query): Builder
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('archived_at');
     }
 }

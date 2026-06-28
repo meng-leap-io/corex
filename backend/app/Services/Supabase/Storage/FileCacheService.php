@@ -91,7 +91,7 @@ class FileCacheService
 
     public function isCached(string $localPath, ?int $ttl = null): bool
     {
-        if (!Storage::disk($this->localDisk)->exists($localPath)) {
+        if (! Storage::disk($this->localDisk)->exists($localPath)) {
             return false;
         }
 
@@ -108,7 +108,7 @@ class FileCacheService
     {
         $cacheDir = 'supabase-cache';
 
-        if (!Storage::disk($this->localDisk)->exists($cacheDir)) {
+        if (! Storage::disk($this->localDisk)->exists($cacheDir)) {
             return 0;
         }
 
@@ -125,7 +125,7 @@ class FileCacheService
     {
         $dir = dirname($localPath);
 
-        if (!Storage::disk($this->localDisk)->exists($dir)) {
+        if (! Storage::disk($this->localDisk)->exists($dir)) {
             Storage::disk($this->localDisk)->makeDirectory($dir);
         }
 
@@ -150,7 +150,7 @@ class FileCacheService
 
         $cacheDir = 'supabase-cache';
 
-        if (!Storage::disk($this->localDisk)->exists($cacheDir)) {
+        if (! Storage::disk($this->localDisk)->exists($cacheDir)) {
             return;
         }
 

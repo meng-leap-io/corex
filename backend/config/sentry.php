@@ -1,5 +1,12 @@
 <?php
 
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Validation\ValidationException;
+use Sentry\Event;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+
 return [
     'dsn' => env('SENTRY_LARAVEL_DSN'),
 
@@ -31,11 +38,11 @@ return [
     ],
 
     'ignore_exceptions' => [
-        Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class,
-        Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException::class,
-        Illuminate\Auth\AuthenticationException::class,
-        Illuminate\Validation\ValidationException::class,
-        Illuminate\Database\Eloquent\ModelNotFoundException::class,
+        NotFoundHttpException::class,
+        AccessDeniedHttpException::class,
+        AuthenticationException::class,
+        ValidationException::class,
+        ModelNotFoundException::class,
     ],
 
     'tags' => [
@@ -43,10 +50,11 @@ return [
         'platform' => 'laravel',
     ],
 
-    'before_send' => function (\Sentry\Event $event): ?\Sentry\Event {
+    'before_send' => function (Event $event): ?Event {
         if (app()->environment('local')) {
             return null;
         }
+
         return $event;
     },
 ];

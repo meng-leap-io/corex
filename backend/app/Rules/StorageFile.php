@@ -40,7 +40,7 @@ class StorageFile implements ValidationRule
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if (!$value instanceof UploadedFile) {
+        if (! $value instanceof UploadedFile) {
             $fail('The :attribute must be a valid uploaded file.');
 
             return;
@@ -53,17 +53,17 @@ class StorageFile implements ValidationRule
         $allowedExtensions = $this->allowedExtensions ?? ($config['extensions'] ?? []);
 
         if ($value->getSize() > $maxSize) {
-            $fail("The :attribute exceeds the maximum file size of " . ($maxSize / 1024 / 1024) . " MB.");
+            $fail('The :attribute exceeds the maximum file size of '.($maxSize / 1024 / 1024).' MB.');
         }
 
-        if (!empty($allowedMimes) && !in_array($value->getMimeType(), $allowedMimes, true)) {
+        if (! empty($allowedMimes) && ! in_array($value->getMimeType(), $allowedMimes, true)) {
             $fail("The :attribute type '{$value->getMimeType()}' is not allowed.");
         }
 
-        if (!empty($allowedExtensions)) {
+        if (! empty($allowedExtensions)) {
             $ext = strtolower($value->getClientOriginalExtension());
 
-            if (!in_array($ext, $allowedExtensions, true)) {
+            if (! in_array($ext, $allowedExtensions, true)) {
                 $fail("The :attribute extension '.{$ext}' is not allowed.");
             }
         }
@@ -75,7 +75,7 @@ class StorageFile implements ValidationRule
 
     private function validateImageDimensions(UploadedFile $file, Closure $fail): void
     {
-        if (!str_starts_with($file->getMimeType() ?? '', 'image/')) {
+        if (! str_starts_with($file->getMimeType() ?? '', 'image/')) {
             return;
         }
 

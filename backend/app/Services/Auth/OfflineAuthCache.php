@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Auth;
 
 use App\Models\User;
+use Illuminate\Cache\RedisStore;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -35,13 +38,13 @@ class OfflineAuthCache
         ], $metadata);
 
         Cache::put(
-            self::CACHE_PREFIX . $user->id,
+            self::CACHE_PREFIX.$user->id,
             $data,
             now()->addDays($this->cacheDurationDays),
         );
 
         Cache::put(
-            self::TOKEN_PREFIX . hash('sha256', $accessToken),
+            self::TOKEN_PREFIX.hash('sha256', $accessToken),
             $user->id,
             now()->addDays($this->cacheDurationDays),
         );
@@ -51,14 +54,14 @@ class OfflineAuthCache
 
     public function getCachedUser(int|string $userId): ?array
     {
-        return Cache::get(self::CACHE_PREFIX . $userId);
+        return Cache::get(self::CACHE_PREFIX.$userId);
     }
 
     public function getCachedUserByToken(string $accessToken): ?array
     {
-        $userId = Cache::get(self::TOKEN_PREFIX . hash('sha256', $accessToken));
+        $userId = Cache::get(self::TOKEN_PREFIX.hash('sha256', $accessToken));
 
-        if (!$userId) {
+        if (! $userId) {
             return null;
         }
 
@@ -67,7 +70,7 @@ class OfflineAuthCache
 
     public function hasCachedSession(int|string $userId): bool
     {
-        return Cache::has(self::CACHE_PREFIX . $userId);
+        return Cache::has(self::CACHE_PREFIX.$userId);
     }
 
     public function removeCachedSession(User $user): void
@@ -75,10 +78,10 @@ class OfflineAuthCache
         $cached = $this->getCachedUser($user->id);
 
         if ($cached && isset($cached['access_token'])) {
-            Cache::forget(self::TOKEN_PREFIX . hash('sha256', $cached['access_token']));
+            Cache::forget(self::TOKEN_PREFIX.hash('sha256', $cached['access_token']));
         }
 
-        Cache::forget(self::CACHE_PREFIX . $user->id);
+        Cache::forget(self::CACHE_PREFIX.$user->id);
 
         Log::info('offline_auth.cleared', ['user_id' => $user->id]);
     }
@@ -87,7 +90,7 @@ class OfflineAuthCache
     {
         $user = User::where('email', $email)->first();
 
-        if (!$user || !\Illuminate\Support\Facades\Hash::check($password, $user->password)) {
+        if (! $user || ! Hash::check($password, $user->password)) {
             return null;
         }
 
@@ -97,8 +100,8 @@ class OfflineAuthCache
     public function isOfflineMode(): bool
     {
         try {
-            $response = \Illuminate\Support\Facades\Http::timeout(3)
-                ->head(rtrim(config('supabase.url'), '/') . '/auth/v1/health');
+            $response = Http::timeout(3)
+                ->head(rtrim(config('supabase.url'), '/').'/auth/v1/health');
 
             return $response->failed();
         } catch (\Throwable) {
@@ -123,7 +126,7 @@ class OfflineAuthCache
     {
         $offlineData = $this->getCachedUser($user->id);
 
-        if (!$offlineData) {
+        if (! $offlineData) {
             return ['synced' => false, 'reason' => 'No offline data'];
         }
 
@@ -137,10 +140,10 @@ class OfflineAuthCache
             $updated['plan'] = $user->plan;
         }
 
-        if (!empty($updated)) {
+        if (! empty($updated)) {
             $updated['synced_at'] = now()->toIso8601String();
             Cache::put(
-                self::CACHE_PREFIX . $user->id,
+                self::CACHE_PREFIX.$user->id,
                 array_merge($offlineData, $updated),
                 now()->addDays($this->cacheDurationDays),
             );
@@ -162,7 +165,7 @@ class OfflineAuthCache
         $token = Str::random(64);
 
         Cache::put(
-            'offline_token_map_' . hash('sha256', $token),
+            'offline_token_map_'.hash('sha256', $token),
             [
                 'user_id' => $user->id,
                 'created_at' => now()->toIso8601String(),
@@ -175,9 +178,9 @@ class OfflineAuthCache
 
     public function validateOfflineToken(string $token): ?User
     {
-        $data = Cache::get('offline_token_map_' . hash('sha256', $token));
+        $data = Cache::get('offline_token_map_'.hash('sha256', $token));
 
-        if (!$data) {
+        if (! $data) {
             return null;
         }
 
@@ -192,9 +195,9 @@ class OfflineAuthCache
             $store = Cache::getStore();
 
             if (method_exists($store, 'getPrefix')) {
-                $prefix = $store->getPrefix() . self::CACHE_PREFIX;
+                $prefix = $store->getPrefix().self::CACHE_PREFIX;
 
-                if ($store instanceof \Illuminate\Cache\RedisStore) {
+                if ($store instanceof RedisStore) {
                     $keys = $store->connection()->keys("{$prefix}*");
 
                     foreach ($keys as $key) {

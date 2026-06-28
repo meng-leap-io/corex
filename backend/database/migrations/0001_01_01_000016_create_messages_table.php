@@ -32,9 +32,6 @@ return new class extends Migration
             $table->index('created_at');
         });
 
-        Schema::table('conversations', function (Blueprint $table) {
-            $table->dropColumn('messages');
-        });
     }
 
     public function down(): void

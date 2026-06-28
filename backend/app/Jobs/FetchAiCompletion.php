@@ -6,7 +6,6 @@ namespace App\Jobs;
 
 use App\Models\CodeGeneration;
 use App\Models\Conversation;
-use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
@@ -20,7 +19,9 @@ class FetchAiCompletion implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $timeout = 180;
+
     public int $tries = 3;
+
     public int $backoff = 5;
 
     private const MODEL_COSTS = [
@@ -57,10 +58,10 @@ class FetchAiCompletion implements ShouldQueue
                     ...$this->options,
                 ]);
 
-            $duration = (int)((microtime(true) - $startTime) * 1000);
+            $duration = (int) ((microtime(true) - $startTime) * 1000);
             $result = $response->json();
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 throw new \RuntimeException($result['error']['message'] ?? 'AI provider error');
             }
 
@@ -91,7 +92,7 @@ class FetchAiCompletion implements ShouldQueue
                 $this->createConversation($assistantContent, $promptTokens, $completionTokens, $totalTokens, $cost);
             }
         } catch (\Throwable $e) {
-            $duration = (int)((microtime(true) - $startTime) * 1000);
+            $duration = (int) ((microtime(true) - $startTime) * 1000);
 
             ProcessAiUsage::dispatch(
                 userId: $this->userId,
@@ -166,6 +167,7 @@ class FetchAiCompletion implements ShouldQueue
     private function calculateCost(string $model, int $promptTokens, int $completionTokens): float
     {
         $costs = self::MODEL_COSTS[$model] ?? ['input' => 0, 'output' => 0];
+
         return ($promptTokens * $costs['input']) + ($completionTokens * $costs['output']);
     }
 }

@@ -9,7 +9,6 @@ use App\Models\CustomMetric;
 use App\Models\FeatureUsage;
 use App\Models\PageView;
 use App\Models\PerformanceSnapshot;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -196,8 +195,8 @@ class AnalyticsService
                     DB::raw("date_trunc('hour', created_at) as hour"),
                     DB::raw('COUNT(*) as requests'),
                     DB::raw('AVG(duration_ms) as avg_duration'),
-                    DB::raw("percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) as p95"),
-                    DB::raw("percentile_cont(0.99) WITHIN GROUP (ORDER BY duration_ms) as p99"),
+                    DB::raw('percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) as p95'),
+                    DB::raw('percentile_cont(0.99) WITHIN GROUP (ORDER BY duration_ms) as p99'),
                 )
                 ->groupBy('hour')
                 ->orderBy('hour')

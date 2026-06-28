@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Analytics;
 
+use App\Models\Conversation;
 use App\Models\PerformanceSnapshot;
+use App\Models\Project;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class PerformanceService
@@ -119,9 +122,9 @@ class PerformanceService
     protected function getApplicationMetrics(): array
     {
         return [
-            'total_users' => \App\Models\User::count(),
-            'total_projects' => \App\Models\Project::count(),
-            'total_conversations' => \App\Models\Conversation::count(),
+            'total_users' => User::count(),
+            'total_projects' => Project::count(),
+            'total_conversations' => Conversation::count(),
         ];
     }
 
@@ -142,8 +145,8 @@ class PerformanceService
         $driver = DB::connection()->getDriverName();
         if ($driver === 'pgsql' || $driver === 'supabase') {
             $result = DB::select(
-                "SELECT percentile_cont(?) WITHIN GROUP (ORDER BY duration_ms) as p
-                 FROM page_views WHERE created_at >= ?",
+                'SELECT percentile_cont(?) WITHIN GROUP (ORDER BY duration_ms) as p
+                 FROM page_views WHERE created_at >= ?',
                 [$percentile, now()->subMinutes($minutes)]
             );
 
@@ -153,7 +156,7 @@ class PerformanceService
         $times = PageView::where('created_at', '>=', now()->subMinutes($minutes))
             ->pluck('duration_ms')
             ->sort()
-           ->values();
+            ->values();
 
         if ($times->isEmpty()) {
             return 0;

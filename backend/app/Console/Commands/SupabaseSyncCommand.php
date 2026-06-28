@@ -7,8 +7,9 @@ namespace App\Console\Commands;
 use App\Contracts\SyncContract;
 use App\Models\SyncConflict;
 use App\Models\SyncSnapshot;
-use App\Services\Sync\SnapshotManager;
+use App\Services\Sync\SyncQueue;
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 
 class SupabaseSyncCommand extends Command
 {
@@ -47,7 +48,7 @@ class SupabaseSyncCommand extends Command
 
         $this->info('Running full sync (push + pull)...');
 
-        if (!$sync->verifyConnection() && !$this->option('force')) {
+        if (! $sync->verifyConnection() && ! $this->option('force')) {
             $this->error('Cannot connect to Supabase. Use --force to sync anyway.');
 
             return Command::FAILURE;
@@ -77,7 +78,7 @@ class SupabaseSyncCommand extends Command
 
         $this->info('Pushing local changes...');
 
-        if (!$sync->verifyConnection() && !$this->option('force')) {
+        if (! $sync->verifyConnection() && ! $this->option('force')) {
             $this->error('Cannot connect to Supabase. Use --force to sync anyway.');
 
             return Command::FAILURE;
@@ -95,7 +96,7 @@ class SupabaseSyncCommand extends Command
 
         $this->info('Pulling remote changes...');
 
-        if (!$sync->verifyConnection() && !$this->option('force')) {
+        if (! $sync->verifyConnection() && ! $this->option('force')) {
             $this->error('Cannot connect to Supabase. Use --force to sync anyway.');
 
             return Command::FAILURE;
@@ -132,7 +133,7 @@ class SupabaseSyncCommand extends Command
                     ['Conflicts', $sync->getConflictCount()],
                     ['Queue Pending', $sync->getQueueStats()['pending'] ?? 0],
                     ['Queue Dead', $sync->getQueueStats()['dead'] ?? 0],
-                    ['Sync Progress', $sync->getSyncProgress()['progress'] . '%'],
+                    ['Sync Progress', $sync->getSyncProgress()['progress'].'%'],
                 ],
             );
         }
@@ -149,7 +150,7 @@ class SupabaseSyncCommand extends Command
         if ($conflictId && $resolutionJson) {
             $resolution = json_decode($resolutionJson, true);
 
-            if (!$resolution) {
+            if (! $resolution) {
                 $this->error('Invalid JSON resolution data.');
 
                 return Command::FAILURE;
@@ -190,7 +191,7 @@ class SupabaseSyncCommand extends Command
                 $c->local_version,
                 $c->remote_version,
                 $c->strategy,
-                \Illuminate\Support\Str::limit($c->reason, 40),
+                Str::limit($c->reason, 40),
             ])->toArray(),
         );
 
@@ -223,9 +224,9 @@ class SupabaseSyncCommand extends Command
         $this->table(
             ['ID', 'Table', 'Record', 'Version', 'Reason', 'Created'],
             $snapshots->map(fn ($s) => [
-                \Illuminate\Support\Str::limit($s->id, 8),
+                Str::limit($s->id, 8),
                 $s->table_name,
-                \Illuminate\Support\Str::limit($s->record_id, 8),
+                Str::limit($s->record_id, 8),
                 $s->version,
                 $s->reason,
                 $s->created_at?->diffForHumans(),
@@ -239,7 +240,7 @@ class SupabaseSyncCommand extends Command
     {
         $snapshotId = $this->option('snapshot');
 
-        if (!$snapshotId) {
+        if (! $snapshotId) {
             $this->error('--snapshot option is required for rollback action.');
 
             return Command::FAILURE;
@@ -258,7 +259,7 @@ class SupabaseSyncCommand extends Command
 
     private function retryDead(SyncContract $sync): int
     {
-        $queue = app(\App\Services\Sync\SyncQueue::class);
+        $queue = app(SyncQueue::class);
         $count = $queue->retryDead();
         $this->info("Retried {$count} dead queue jobs.");
 
@@ -267,7 +268,7 @@ class SupabaseSyncCommand extends Command
 
     private function clearDead(SyncContract $sync): int
     {
-        $queue = app(\App\Services\Sync\SyncQueue::class);
+        $queue = app(SyncQueue::class);
         $count = $queue->clearDead();
         $this->info("Cleared {$count} dead queue jobs.");
 

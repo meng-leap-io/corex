@@ -7,6 +7,7 @@ namespace App\Services\Windows;
 class FileAssociationService
 {
     private const APP_REG_PATH = 'Software\\Corex';
+
     private const ASSOC_REG_PATH = 'Software\\Classes';
 
     public static function isWindows(): bool
@@ -16,12 +17,12 @@ class FileAssociationService
 
     public static function registerProtocol(string $scheme = 'corex', string $description = 'Corex URL Protocol'): bool
     {
-        if (!self::isWindows()) {
+        if (! self::isWindows()) {
             return false;
         }
 
         $installPath = RegistryService::getAppInstallPath() ?? dirname(base_path());
-        $launcher = $installPath . '\\start-corex.bat';
+        $launcher = $installPath.'\\start-corex.bat';
 
         ComService::regWrite("HKEY_CLASSES_ROOT\\$scheme", '', $description);
         ComService::regWrite("HKEY_CLASSES_ROOT\\$scheme\\DefaultIcon", '', "$installPath\\icon.ico");
@@ -32,22 +33,24 @@ class FileAssociationService
         );
 
         EventLogService::info("Protocol handler registered: $scheme://");
+
         return true;
     }
 
     public static function unregisterProtocol(string $scheme = 'corex'): bool
     {
-        if (!self::isWindows()) {
+        if (! self::isWindows()) {
             return false;
         }
         ComService::regDelete("HKEY_CLASSES_ROOT\\$scheme");
         EventLogService::info("Protocol handler unregistered: $scheme://");
+
         return true;
     }
 
-    public static function registerFileAssociation(string $extension, string $progId = null, string $description = null, string $iconPath = null): bool
+    public static function registerFileAssociation(string $extension, ?string $progId = null, ?string $description = null, ?string $iconPath = null): bool
     {
-        if (!self::isWindows()) {
+        if (! self::isWindows()) {
             return false;
         }
 
@@ -55,8 +58,8 @@ class FileAssociationService
         $progId = $progId ?? "Corex.$ext";
         $description = $description ?? "Corex $ext File";
         $installPath = RegistryService::getAppInstallPath() ?? dirname(base_path());
-        $launcher = $installPath . '\\start-corex.bat';
-        $iconPath = $iconPath ?? ($installPath . '\\icon.ico');
+        $launcher = $installPath.'\\start-corex.bat';
+        $iconPath = $iconPath ?? ($installPath.'\\icon.ico');
 
         ComService::regWrite("HKEY_CLASSES_ROOT\\.$ext", '', $progId);
         ComService::regWrite("HKEY_CLASSES_ROOT\\$progId", '', $description);
@@ -72,7 +75,7 @@ class FileAssociationService
 
     public static function unregisterFileAssociation(string $extension): bool
     {
-        if (!self::isWindows()) {
+        if (! self::isWindows()) {
             return false;
         }
         $ext = ltrim($extension, '.');
@@ -81,17 +84,18 @@ class FileAssociationService
             ComService::regDelete("HKEY_CLASSES_ROOT\\$progId");
         }
         ComService::regDelete("HKEY_CLASSES_ROOT\\.$ext");
+
         return true;
     }
 
-    public static function registerContextMenu(string $extension, string $menuText, string $command, string $iconPath = null): bool
+    public static function registerContextMenu(string $extension, string $menuText, string $command, ?string $iconPath = null): bool
     {
-        if (!self::isWindows()) {
+        if (! self::isWindows()) {
             return false;
         }
 
         $ext = ltrim($extension, '.');
-        $shellPath = "HKEY_CLASSES_ROOT\\Corex.$ext\\shell\\" . bin2hex(random_bytes(4));
+        $shellPath = "HKEY_CLASSES_ROOT\\Corex.$ext\\shell\\".bin2hex(random_bytes(4));
 
         ComService::regWrite($shellPath, '', $menuText);
         if ($iconPath) {
@@ -104,12 +108,13 @@ class FileAssociationService
         );
 
         EventLogService::info("Context menu registered: '$menuText' for .$ext");
+
         return true;
     }
 
     public static function registerExplorerContextMenu(): bool
     {
-        if (!self::isWindows()) {
+        if (! self::isWindows()) {
             return false;
         }
 
@@ -136,19 +141,20 @@ class FileAssociationService
         ];
 
         foreach ($menuItems as $item) {
-            $path = "HKEY_CLASSES_ROOT\\" . $item['ext'] . "\\shell\\Corex";
+            $path = 'HKEY_CLASSES_ROOT\\'.$item['ext'].'\\shell\\Corex';
             ComService::regWrite($path, '', $item['label']);
             ComService::regWrite($path, 'Icon', $iconPath);
             ComService::regWrite("$path\\command", '', $item['command']);
         }
 
         EventLogService::info('File Explorer context menu registered');
+
         return true;
     }
 
     public static function unregisterExplorerContextMenu(): bool
     {
-        if (!self::isWindows()) {
+        if (! self::isWindows()) {
             return false;
         }
 
@@ -169,13 +175,13 @@ class FileAssociationService
 
     public static function refreshExplorer(): void
     {
-        if (!self::isWindows()) {
+        if (! self::isWindows()) {
             return;
         }
         ComService::powershell(
             '$app = New-Object -ComObject Shell.Application;'
-            . '$app.Windows() | ForEach-Object { $_.Refresh() };'
-            . 'Stop-Process -Name explorer -Force 2>$null'
+            .'$app.Windows() | ForEach-Object { $_.Refresh() };'
+            .'Stop-Process -Name explorer -Force 2>$null'
         );
     }
 
@@ -188,12 +194,13 @@ class FileAssociationService
                 $extensions[] = $m[1];
             }
         }
+
         return array_unique($extensions);
     }
 
     public static function registerSendTo(): bool
     {
-        if (!self::isWindows()) {
+        if (! self::isWindows()) {
             return false;
         }
         $sendTo = ComService::powershell(
@@ -203,7 +210,7 @@ class FileAssociationService
         $launcher = "$installPath\\start-corex.bat";
 
         ComService::createShortcut(
-            trim($sendTo) . '\\Corex.lnk',
+            trim($sendTo).'\\Corex.lnk',
             $launcher,
             'Open files in Corex',
             "$installPath\\icon.ico"

@@ -72,7 +72,7 @@ class WebhookController extends Controller
     {
         $result = $this->webhookService->retrySingle($logId);
 
-        if (!$result) {
+        if (! $result) {
             return response()->json(['message' => 'Log not found or not failed'], 404);
         }
 

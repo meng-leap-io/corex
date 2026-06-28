@@ -53,12 +53,13 @@ class AuthService
     {
         $user = User::findByEmail($email);
 
-        if (!$user || !Hash::check($password, $user->password)) {
+        if (! $user || ! Hash::check($password, $user->password)) {
             Log::warning('auth.login_failed', ['email' => $email]);
+
             return null;
         }
 
-        if (!$user->isVerified()) {
+        if (! $user->isVerified()) {
             Log::info('auth.login_unverified', ['user_id' => $user->id]);
         }
 
@@ -72,7 +73,7 @@ class AuthService
 
     public function registerWithSupabase(array $data): array
     {
-        if (!$this->supabase) {
+        if (! $this->supabase) {
             throw new \RuntimeException('Supabase auth not configured.');
         }
 
@@ -98,7 +99,7 @@ class AuthService
 
     public function loginWithSupabase(string $email, string $password): array
     {
-        if (!$this->supabase) {
+        if (! $this->supabase) {
             throw new \RuntimeException('Supabase auth not configured.');
         }
 
@@ -107,7 +108,7 @@ class AuthService
         $supabaseUser = $session['user'];
         $user = User::where('supabase_id', $supabaseUser['id'])->first();
 
-        if (!$user) {
+        if (! $user) {
             $user = User::where('email', $email)->first();
 
             if ($user) {
@@ -184,11 +185,12 @@ class AuthService
     {
         $token = $user->tokens()->find($tokenId);
 
-        if (!$token) {
+        if (! $token) {
             return false;
         }
 
         $token->delete();
+
         return true;
     }
 
@@ -213,15 +215,15 @@ class AuthService
 
     public function sendEmailVerification(User $user): void
     {
-        $user->notify(new VerifyEmailNotification());
+        $user->notify(new VerifyEmailNotification);
     }
 
-    public function sendPasswordResetLink(string $email): void
+    public function initiatePasswordReset(string $email): ?string
     {
         $user = User::findByEmail($email);
 
-        if (!$user) {
-            return;
+        if (! $user) {
+            return null;
         }
 
         $token = Str::random(64);
@@ -232,25 +234,36 @@ class AuthService
             now()->addMinutes($this->resetTokenExpirationMinutes),
         );
 
-        $user->notify(new PasswordResetNotification($token));
-
         Log::info('auth.password_reset_requested', ['email' => $email]);
+
+        return $token;
     }
 
-    public function resetPassword(string $email, string $token, string $password): bool
+    public function sendPasswordResetLink(string $email): void
+    {
+        $token = $this->initiatePasswordReset($email);
+
+        if ($token) {
+            $user = User::findByEmail($email);
+            $user?->notify(new PasswordResetNotification($token));
+        }
+    }
+
+    public function resetPassword(string $email, string $token, string $password): array
     {
         $cacheKey = "password_reset_{$email}";
         $cached = Cache::get($cacheKey);
 
-        if (!$cached || !hash_equals($cached['token'], $token)) {
+        if (! $cached || ! hash_equals($cached['token'], $token)) {
             Log::warning('auth.password_reset_invalid_token', ['email' => $email]);
-            return false;
+
+            return ['success' => false, 'error' => 'Invalid token'];
         }
 
         $user = User::findByEmail($email);
 
-        if (!$user) {
-            return false;
+        if (! $user) {
+            return ['success' => false, 'error' => 'User not found'];
         }
 
         $user->update(['password' => $password]);
@@ -259,7 +272,7 @@ class AuthService
 
         Log::info('auth.password_reset_completed', ['user_id' => $user->id]);
 
-        return true;
+        return ['success' => true];
     }
 
     public function validateResetToken(string $email, string $token): bool
@@ -293,6 +306,7 @@ class AuthService
 
             if ($user) {
                 $user->update(['supabase_id' => $supabaseUser['id']]);
+
                 return $user;
             }
         }
@@ -302,7 +316,7 @@ class AuthService
             'name' => $supabaseUser['user_metadata']['name']
                 ?? $supabaseUser['email']
                 ?? 'User',
-            'email' => $email ?? 'unknown-' . $supabaseUser['id'] . '@placeholder.local',
+            'email' => $email ?? 'unknown-'.$supabaseUser['id'].'@placeholder.local',
             'password' => bcrypt(Str::random(32)),
             'email_verified_at' => now(),
             'avatar' => $supabaseUser['user_metadata']['avatar_url'] ?? null,

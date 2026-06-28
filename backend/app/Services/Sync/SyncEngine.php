@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Sync;
 
 use App\Contracts\SyncContract;
+use App\Models\SyncConflict;
+use App\Services\Supabase\SupabaseService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 
 class SyncEngine implements SyncContract
 {
@@ -19,7 +21,7 @@ class SyncEngine implements SyncContract
 
     private SnapshotManager $snapshotManager;
 
-    private \App\Services\Supabase\SupabaseService $supabase;
+    private SupabaseService $supabase;
 
     private array $modelMap;
 
@@ -27,7 +29,7 @@ class SyncEngine implements SyncContract
         SyncQueue $queue,
         ConflictResolver $conflictResolver,
         SnapshotManager $snapshotManager,
-        \App\Services\Supabase\SupabaseService $supabase,
+        SupabaseService $supabase,
     ) {
         $this->queue = $queue;
         $this->conflictResolver = $conflictResolver;
@@ -38,7 +40,7 @@ class SyncEngine implements SyncContract
 
     public function syncModel(Model $model, string $action = 'upsert'): bool
     {
-        if (!method_exists($model, 'isSyncingEnabled') || !$model->isSyncingEnabled()) {
+        if (! method_exists($model, 'isSyncingEnabled') || ! $model->isSyncingEnabled()) {
             return false;
         }
 
@@ -117,17 +119,19 @@ class SyncEngine implements SyncContract
 
             $modelClass = $this->modelMap[$job['table']] ?? null;
 
-            if (!$modelClass || !class_exists($modelClass)) {
+            if (! $modelClass || ! class_exists($modelClass)) {
                 $this->queue->fail($job['id'], "No model class for table '{$job['table']}'");
+
                 continue;
             }
 
             try {
                 $model = $modelClass::find($job['record_id']);
 
-                if (!$model) {
+                if (! $model) {
                     if ($job['action'] === 'delete') {
                         $this->queue->complete($job['id']);
+
                         continue;
                     }
 
@@ -160,18 +164,19 @@ class SyncEngine implements SyncContract
         foreach ($pending as $item) {
             $modelClass = $this->modelMap[$item->table_name] ?? null;
 
-            if (!$modelClass) {
+            if (! $modelClass) {
                 continue;
             }
 
             $model = $modelClass::find($item->record_id);
 
-            if (!$model) {
+            if (! $model) {
                 if ($item->action === 'delete') {
                     $this->pushDeleteToRemote($item->table_name, $item->record_id);
                     DB::table('sync_status')->where('id', $item->id)->delete();
                     $results->push(['id' => $item->record_id, 'action' => 'delete', 'success' => true]);
                 }
+
                 continue;
             }
 
@@ -195,7 +200,7 @@ class SyncEngine implements SyncContract
             ? "/rest/v1/{$table}?select=*&order=updated_at.desc&limit=100"
             : null;
 
-        if (!$endpoint) {
+        if (! $endpoint) {
             return $results;
         }
 
@@ -210,13 +215,13 @@ class SyncEngine implements SyncContract
             foreach ($remoteRecords as $remote) {
                 $modelClass = $this->modelMap[$table] ?? null;
 
-                if (!$modelClass) {
+                if (! $modelClass) {
                     continue;
                 }
 
                 $local = $modelClass::find($remote['id']);
 
-                if (!$local) {
+                if (! $local) {
                     $local = $modelClass::create($remote);
                     $results->push(['id' => $remote['id'], 'action' => 'create', 'success' => true]);
                 } elseif ($this->hasConflict($local, $remote)) {
@@ -350,7 +355,7 @@ class SyncEngine implements SyncContract
 
     public function getConflictCount(): int
     {
-        return \App\Models\SyncConflict::where('status', 'pending')->count();
+        return SyncConflict::where('status', 'pending')->count();
     }
 
     public function getQueueStats(): array
@@ -393,9 +398,9 @@ class SyncEngine implements SyncContract
 
     public function resolveConflict(string $conflictId, array $resolution): bool
     {
-        $conflict = \App\Models\SyncConflict::find($conflictId);
+        $conflict = SyncConflict::find($conflictId);
 
-        if (!$conflict || $conflict->status !== 'pending') {
+        if (! $conflict || $conflict->status !== 'pending') {
             return false;
         }
 

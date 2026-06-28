@@ -73,10 +73,10 @@ class File extends Model
         }
 
         if ($size < 1024 * 1024) {
-            return round($size / 1024, 1) . ' KB';
+            return round($size / 1024, 1).' KB';
         }
 
-        return round($size / (1024 * 1024), 1) . ' MB';
+        return round($size / (1024 * 1024), 1).' MB';
     }
 
     public function getThumbnailUrlAttribute(): ?string

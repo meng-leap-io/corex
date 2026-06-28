@@ -18,7 +18,9 @@ class ProcessAiUsage implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $timeout = 30;
+
     public int $tries = 3;
+
     public int $backoff = 2;
 
     public function __construct(

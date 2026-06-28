@@ -33,6 +33,7 @@ return new class extends Migration
             $table->string('role', 30)->default('member');
             $table->jsonb('permissions')->default('{}');
             $table->timestampTz('joined_at')->useCurrent();
+            $table->timestampsTz();
 
             $table->primary(['team_id', 'user_id']);
             $table->index('user_id');
@@ -45,6 +46,7 @@ return new class extends Migration
             $table->string('role', 30)->default('member');
             $table->jsonb('permissions')->default('{}');
             $table->timestampTz('joined_at')->useCurrent();
+            $table->timestampsTz();
 
             $table->primary(['project_id', 'user_id']);
             $table->index('user_id');

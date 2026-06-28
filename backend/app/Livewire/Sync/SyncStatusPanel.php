@@ -80,13 +80,13 @@ class SyncStatusPanel extends Component
 
     public function resolveConflict(): void
     {
-        if (!$this->selectedConflictId || !$this->resolutionJson) {
+        if (! $this->selectedConflictId || ! $this->resolutionJson) {
             return;
         }
 
         $resolution = json_decode($this->resolutionJson, true);
 
-        if (!$resolution) {
+        if (! $resolution) {
             $this->dispatch('sync-error', message: 'Invalid JSON resolution data.');
 
             return;

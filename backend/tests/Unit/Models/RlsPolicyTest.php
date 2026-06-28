@@ -125,10 +125,7 @@ class RlsPolicyTest extends TestCase
         $sharedProject = Project::factory()->create(['user_id' => $owner->id, 'is_public' => false]);
         $sharedProject->members()->attach($member->id, ['role' => 'member']);
 
-        $visibleProjects = Project::scopeVisibleTo(
-            Project::query(),
-            $member
-        )->get();
+        $visibleProjects = Project::visibleTo($member)->get();
 
         $this->assertCount(1, $visibleProjects);
         $this->assertEquals($sharedProject->id, $visibleProjects->first()->id);
@@ -144,10 +141,7 @@ class RlsPolicyTest extends TestCase
             'is_public' => true,
         ]);
 
-        $visibleProjects = Project::scopeVisibleTo(
-            Project::query(),
-            $viewer
-        )->get();
+        $visibleProjects = Project::visibleTo($viewer)->get();
 
         $this->assertTrue($visibleProjects->contains('id', $publicProject->id));
     }

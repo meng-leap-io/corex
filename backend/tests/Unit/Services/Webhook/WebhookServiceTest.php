@@ -2,14 +2,17 @@
 
 namespace Tests\Unit\Services\Webhook;
 
+use App\Models\User;
 use App\Models\WebhookEndpoint;
 use App\Models\WebhookLog;
+use App\Services\Supabase\SupabaseService;
 use App\Services\Webhook\Handlers\StripeHandler;
 use App\Services\Webhook\WebhookRouter;
 use App\Services\Webhook\WebhookService;
 use App\Services\Webhook\WebhookSignature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
 
 class WebhookServiceTest extends TestCase
@@ -26,13 +29,20 @@ class WebhookServiceTest extends TestCase
 
         $this->router = app(WebhookRouter::class);
         $signature = app(WebhookSignature::class);
-        $supabase = app(\App\Services\Supabase\SupabaseService::class);
+        $supabase = app(SupabaseService::class);
 
         $this->service = new WebhookService($this->router, $signature, $supabase);
     }
 
     public function test_creates_webhook_log(): void
     {
+        Bus::fake();
+
+        $this->router->register('webhooks/test', '', [
+            'verify_signature' => false,
+            'rate_limit' => false,
+        ]);
+
         $payload = ['type' => 'test.event', 'data' => ['key' => 'value']];
         $request = Request::create('/webhooks/test', 'POST', [], [], [], [], json_encode($payload));
         $request->headers->set('X-Webhook-Event', 'test.event');
@@ -50,7 +60,8 @@ class WebhookServiceTest extends TestCase
 
     public function test_handles_stripe_subscription_updated(): void
     {
-        $handler = new StripeHandler();
+        $handler = new StripeHandler;
+        $user = User::factory()->create();
         $log = WebhookLog::factory()->create([
             'provider' => 'stripe',
             'event_type' => 'customer.subscription.updated',
@@ -61,7 +72,7 @@ class WebhookServiceTest extends TestCase
                         'id' => 'sub_123',
                         'customer' => 'cus_123',
                         'status' => 'active',
-                        'metadata' => ['user_id' => 'user_1'],
+                        'metadata' => ['user_id' => $user->id],
                         'items' => [
                             'data' => [
                                 ['price' => ['nickname' => 'pro', 'id' => 'price_123']],
@@ -81,7 +92,7 @@ class WebhookServiceTest extends TestCase
 
     public function test_handles_stripe_unknown_event(): void
     {
-        $handler = new StripeHandler();
+        $handler = new StripeHandler;
         $log = WebhookLog::factory()->create([
             'provider' => 'stripe',
             'event_type' => 'unknown.event',
@@ -127,6 +138,8 @@ class WebhookServiceTest extends TestCase
 
     public function test_retry_single_failed_log(): void
     {
+        Bus::fake();
+
         $log = WebhookLog::factory()->create([
             'status' => 'failed',
             'attempts' => 1,
@@ -144,7 +157,7 @@ class WebhookServiceTest extends TestCase
 
     public function test_retry_non_existent_log(): void
     {
-        $result = $this->service->retrySingle('non-existent-id');
+        $result = $this->service->retrySingle('00000000-0000-0000-0000-000000000000');
 
         $this->assertFalse($result);
     }

@@ -1,6 +1,9 @@
 <?php
 
 declare(strict_types=1);
+use App\Services\Webhook\Handlers\GitHubHandler;
+use App\Services\Webhook\Handlers\ResendHandler;
+use App\Services\Webhook\Handlers\StripeHandler;
 
 return [
     'signing' => [
@@ -29,13 +32,13 @@ return [
     ],
 
     'edge_functions' => [
-        'base_url' => env('SUPABASE_URL') . '/functions/v1',
+        'base_url' => env('SUPABASE_URL').'/functions/v1',
         'timeout' => env('EDGE_FUNCTION_TIMEOUT', 30),
     ],
 
     'handlers' => [
-        'stripe' => \App\Services\Webhook\Handlers\StripeHandler::class,
-        'resend' => \App\Services\Webhook\Handlers\ResendHandler::class,
-        'github' => \App\Services\Webhook\Handlers\GitHubHandler::class,
+        'stripe' => StripeHandler::class,
+        'resend' => ResendHandler::class,
+        'github' => GitHubHandler::class,
     ],
 ];

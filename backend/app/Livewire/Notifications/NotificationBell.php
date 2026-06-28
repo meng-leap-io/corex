@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\Notifications;
 
 use App\Models\Notification;
-use App\Services\Supabase\SupabaseRealtimeService;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -50,7 +49,7 @@ class NotificationBell extends Component
 
     public function toggleDropdown(): void
     {
-        $this->showDropdown = !$this->showDropdown;
+        $this->showDropdown = ! $this->showDropdown;
 
         if ($this->showDropdown) {
             $this->loadRecent();

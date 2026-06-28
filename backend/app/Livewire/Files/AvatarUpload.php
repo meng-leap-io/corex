@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Files;
 
+use App\Models\File;
 use App\Services\Supabase\Storage\FileManagementService;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -51,7 +52,7 @@ class AvatarUpload extends Component
             $this->dispatch('avatarUpdated', url: $file->url);
             $this->dispatch('notify', message: 'Avatar updated successfully.');
         } catch (\Throwable $e) {
-            $this->dispatch('notify', message: 'Avatar update failed: ' . $e->getMessage(), type: 'error');
+            $this->dispatch('notify', message: 'Avatar update failed: '.$e->getMessage(), type: 'error');
         } finally {
             $this->uploading = false;
         }
@@ -61,7 +62,7 @@ class AvatarUpload extends Component
     {
         $user = auth()->user();
 
-        $existingAvatars = \App\Models\File::where('user_id', $user->id)
+        $existingAvatars = File::where('user_id', $user->id)
             ->where('bucket', 'avatars')
             ->where('metadata->type', 'avatar')
             ->get();

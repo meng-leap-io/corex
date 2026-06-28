@@ -8,8 +8,8 @@ use App\Events\Supabase\MessageSent;
 use App\Events\Supabase\NotificationCreated;
 use App\Events\Supabase\PresenceUpdated;
 use App\Events\Supabase\ProjectUpdated;
-use App\Models\User;
 use App\Services\Supabase\SupabaseRealtimeService;
+use App\Services\Supabase\SupabaseService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -20,7 +20,7 @@ class RealtimeServiceProvider extends ServiceProvider
     {
         $this->app->singleton(SupabaseRealtimeService::class, function ($app) {
             return new SupabaseRealtimeService(
-                $app->make(\App\Services\Supabase\SupabaseService::class),
+                $app->make(SupabaseService::class),
             );
         });
     }
@@ -29,7 +29,9 @@ class RealtimeServiceProvider extends ServiceProvider
     {
         $this->registerEventChannelBindings();
 
-        $this->provideRealtimeConfigToViews();
+        if (! $this->app->runningInConsole()) {
+            $this->provideRealtimeConfigToViews();
+        }
     }
 
     private function registerEventChannelBindings(): void
@@ -61,17 +63,21 @@ class RealtimeServiceProvider extends ServiceProvider
 
     private function autoSubscribeUserChannels(SupabaseRealtimeService $realtime): void
     {
-        if (Auth::check()) {
-            $user = Auth::user();
+        try {
+            if (Auth::check()) {
+                $user = Auth::user();
 
-            $realtime->channel("notifications:{$user->id}");
-            $realtime->channel("user:{$user->id}");
+                $realtime->channel("notifications:{$user->id}");
+                $realtime->channel("user:{$user->id}");
 
-            $teams = $user->teams ?? [];
+                $teams = $user->teams ?? [];
 
-            foreach ($teams as $team) {
-                $realtime->channel("team:{$team->id}");
+                foreach ($teams as $team) {
+                    $realtime->channel("team:{$team->id}");
+                }
             }
+        } catch (\Throwable $e) {
+            // Session may not be available in console/testing contexts
         }
     }
 

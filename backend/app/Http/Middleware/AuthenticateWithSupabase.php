@@ -27,11 +27,11 @@ class AuthenticateWithSupabase
 
         $session = $this->restoreFromToken($request);
 
-        if (!$session) {
+        if (! $session) {
             $session = $this->sessionService->restoreFromRemember();
         }
 
-        if (!$session || !isset($session['user_id'])) {
+        if (! $session || ! isset($session['user_id'])) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Unauthenticated.'], 401);
             }
@@ -41,7 +41,7 @@ class AuthenticateWithSupabase
 
         $user = User::find($session['user_id']);
 
-        if (!$user || $user->trashed()) {
+        if (! $user || $user->trashed()) {
             return redirect()->route('auth.desktop.login');
         }
 
@@ -57,7 +57,7 @@ class AuthenticateWithSupabase
             ?? $request->input('token')
             ?? $request->cookie('auth_token');
 
-        if (!$token) {
+        if (! $token) {
             return null;
         }
 

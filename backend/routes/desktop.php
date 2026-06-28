@@ -1,15 +1,15 @@
 <?php
 
-use App\Http\Controllers\Desktop\FileController;
-use App\Http\Controllers\Desktop\ProjectController;
-use App\Http\Controllers\Desktop\DialogController;
-use App\Http\Controllers\Desktop\NotificationController;
 use App\Http\Controllers\Desktop\AiModelController;
-use App\Http\Controllers\Desktop\UpdateController;
 use App\Http\Controllers\Desktop\DeepLinkController;
+use App\Http\Controllers\Desktop\DialogController;
+use App\Http\Controllers\Desktop\FileController;
+use App\Http\Controllers\Desktop\NotificationController;
+use App\Http\Controllers\Desktop\ProjectController;
+use App\Http\Controllers\Desktop\ShortcutController;
 use App\Http\Controllers\Desktop\SystemController;
 use App\Http\Controllers\Desktop\TaskSchedulerController;
-use App\Http\Controllers\Desktop\ShortcutController;
+use App\Http\Controllers\Desktop\UpdateController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['nativephp', 'auth:sanctum'])->prefix('_native')->group(function () {
@@ -77,7 +77,7 @@ Route::middleware(['nativephp', 'auth:sanctum'])->prefix('_native')->group(funct
                 'peak' => memory_get_peak_usage(true),
                 'limit' => ini_get('memory_limit'),
             ],
-            'offline' => !cache()->get('_native_online', true),
+            'offline' => ! cache()->get('_native_online', true),
         ]);
     });
 
@@ -172,6 +172,7 @@ Route::middleware('nativephp')->post('/_native/ipc/send', function () {
     $event = request('event');
     $data = request('data');
     native()->ipc()->send($channel, $event, $data);
+
     return response()->json(['sent' => true]);
 });
 

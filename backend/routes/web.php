@@ -1,9 +1,10 @@
 <?php
 
+use App\Http\Controllers\Desktop\FileController;
 use Illuminate\Support\Facades\Route;
 
 // Load desktop authentication routes
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';
 
 Route::get('/', function () {
     return view('landing.index');
@@ -38,11 +39,11 @@ Route::middleware('nativephp')->group(function () {
 
     // Desktop file operations
     Route::prefix('_native/files')->group(function () {
-        Route::post('/open', [\App\Http\Controllers\Desktop\FileController::class, 'openLocalFile']);
-        Route::post('/save', [\App\Http\Controllers\Desktop\FileController::class, 'saveLocalFile']);
-        Route::post('/upload', [\App\Http\Controllers\Desktop\FileController::class, 'uploadToSupabase']);
-        Route::get('/download/{file}', [\App\Http\Controllers\Desktop\FileController::class, 'downloadFromSupabase']);
-        Route::post('/sync', [\App\Http\Controllers\Desktop\FileController::class, 'syncLocalToRemote']);
-        Route::get('/tree', [\App\Http\Controllers\Desktop\FileController::class, 'listLocalDirectory']);
+        Route::post('/open', [FileController::class, 'openLocalFile']);
+        Route::post('/save', [FileController::class, 'saveLocalFile']);
+        Route::post('/upload', [FileController::class, 'uploadToSupabase']);
+        Route::get('/download/{file}', [FileController::class, 'downloadFromSupabase']);
+        Route::post('/sync', [FileController::class, 'syncLocalToRemote']);
+        Route::get('/tree', [FileController::class, 'listLocalDirectory']);
     });
 });

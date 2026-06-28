@@ -82,7 +82,7 @@ class SupabaseAnalyticsCommand extends Command
                     ['Events', $report['events']],
                     ['Page Views', $report['page_views']],
                     ['Unique Users', $report['unique_users']],
-                    ['Avg Response Time', round($report['avg_response_time'], 2) . 'ms'],
+                    ['Avg Response Time', round($report['avg_response_time'], 2).'ms'],
                     ['Errors', $report['errors']],
                 ]
             );
@@ -100,7 +100,7 @@ class SupabaseAnalyticsCommand extends Command
                     ['Total Events', $data['overview']['total_events']],
                     ['Unique Users', $data['overview']['unique_users']],
                     ['Page Views', $data['overview']['total_page_views']],
-                    ['Avg Response Time', round($data['overview']['avg_response_time'], 2) . 'ms'],
+                    ['Avg Response Time', round($data['overview']['avg_response_time'], 2).'ms'],
                     ['Errors', $data['overview']['total_errors']],
                     ['Feature Usage', $data['overview']['feature_usage_count']],
                 ]

@@ -28,7 +28,7 @@ class SecurityHeaders
     {
         $response = $next($request);
 
-        if (!$response->isSuccessful() && !$response->isClientError() && !$response->isServerError()) {
+        if (! $response->isSuccessful() && ! $response->isClientError() && ! $response->isServerError()) {
             return $response;
         }
 
@@ -69,7 +69,7 @@ class SecurityHeaders
         ];
 
         if ($request->isSecure() || app()->environment('production')) {
-            $directives[] = "upgrade-insecure-requests";
+            $directives[] = 'upgrade-insecure-requests';
         }
 
         return implode('; ', $directives);

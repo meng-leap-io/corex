@@ -10,8 +10,8 @@ use App\Events\Sync\SyncCompleted;
 use App\Events\Sync\SyncFailed;
 use App\Events\Sync\SyncStarted;
 use App\Models\SyncConflict;
-use App\Models\SyncSnapshot;
 use App\Models\SyncStatus;
+use App\Services\Supabase\SupabaseService;
 use App\Services\Supabase\SyncService;
 use App\Services\Sync\ConflictResolver;
 use App\Services\Sync\SnapshotManager;
@@ -25,15 +25,15 @@ class SyncServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(SyncQueue::class, function () {
-            return new SyncQueue();
+            return new SyncQueue;
         });
 
         $this->app->singleton(ConflictResolver::class, function () {
-            return new ConflictResolver();
+            return new ConflictResolver;
         });
 
         $this->app->singleton(SnapshotManager::class, function () {
-            return new SnapshotManager();
+            return new SnapshotManager;
         });
 
         $this->app->singleton(SyncEngine::class, function ($app) {
@@ -41,7 +41,7 @@ class SyncServiceProvider extends ServiceProvider
                 $app->make(SyncQueue::class),
                 $app->make(ConflictResolver::class),
                 $app->make(SnapshotManager::class),
-                $app->make(\App\Services\Supabase\SupabaseService::class),
+                $app->make(SupabaseService::class),
             );
         });
 
@@ -54,11 +54,11 @@ class SyncServiceProvider extends ServiceProvider
             );
         });
 
-        $this->app->bind(\App\Services\Supabase\SyncService::class, function ($app) {
+        $this->app->bind(SyncService::class, function ($app) {
             return $app->make(SyncContract::class);
         });
 
-        app('sync.model_map', fn () => config('supabase.sync.model_map', []));
+        // intentionally left blank - model map is read from config directly
     }
 
     public function boot(): void

@@ -42,13 +42,13 @@ class FileManagementService
     ): File {
         $errors = $this->validator->validateUpload($file, $bucket);
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             throw new \InvalidArgumentException(implode('; ', $errors));
         }
 
-        $directory = $directory ?? Str::random(2) . '/' . Str::random(2);
+        $directory = $directory ?? Str::random(2).'/'.Str::random(2);
         $sanitizedName = $this->validator->sanitizeFilename($file->getClientOriginalName());
-        $storedName = Str::random(20) . '_' . $sanitizedName;
+        $storedName = Str::random(20).'_'.$sanitizedName;
         $path = "{$directory}/{$storedName}";
 
         $uploadPath = $path;
@@ -58,7 +58,7 @@ class FileManagementService
             $optimizedPath = $this->optimizer->optimize($file, $options);
 
             if ($optimizedPath !== null) {
-                $storedName = pathinfo($storedName, PATHINFO_FILENAME) . '.webp';
+                $storedName = pathinfo($storedName, PATHINFO_FILENAME).'.webp';
                 $path = "{$directory}/{$storedName}";
                 $url = $this->storage->uploadFromPath($bucket, $path, $optimizedPath, $options);
 
@@ -99,7 +99,7 @@ class FileManagementService
     {
         $errors = $this->validator->validateUpload($file, self::BUCKET_AVATARS);
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             throw new \InvalidArgumentException(implode('; ', $errors));
         }
 
@@ -121,7 +121,7 @@ class FileManagementService
             'user_id' => $user->id,
             'bucket' => self::BUCKET_AVATARS,
             'path' => $path,
-            'original_name' => 'avatar.' . $ext,
+            'original_name' => 'avatar.'.$ext,
             'mime_type' => 'image/webp',
             'size' => $file->getSize(),
             'extension' => $ext,
@@ -165,7 +165,7 @@ class FileManagementService
         try {
             $deleted = $this->storage->delete($file->bucket, $file->path);
 
-            if (!$deleted) {
+            if (! $deleted) {
                 Log::warning('supabase.file.remote_delete_failed', [
                     'file_id' => $file->id,
                     'bucket' => $file->bucket,
@@ -280,7 +280,7 @@ class FileManagementService
             throw new \RuntimeException("Cannot duplicate file {$file->id}: source not found");
         }
 
-        $newPath = 'duplicates/' . Str::random(40) . '_' . $file->original_name;
+        $newPath = 'duplicates/'.Str::random(40).'_'.$file->original_name;
 
         $url = $this->storage->upload($file->bucket, $newPath, $contents);
 
@@ -301,7 +301,7 @@ class FileManagementService
     public function ensureBucketsExist(): void
     {
         foreach ($this->buckets as $name => $config) {
-            if (!$this->storage->bucketExists($name)) {
+            if (! $this->storage->bucketExists($name)) {
                 $this->storage->createBucket($name, $config['public'] ?? false);
 
                 Log::info('supabase.bucket.created', ['name' => $name, 'public' => $config['public'] ?? false]);
@@ -311,7 +311,7 @@ class FileManagementService
 
     public function exportProject(array $files, string $projectName): array
     {
-        $exportPath = "exports/" . Str::slug($projectName) . '_' . now()->format('Ymd_His');
+        $exportPath = 'exports/'.Str::slug($projectName).'_'.now()->format('Ymd_His');
 
         $manifest = [
             'project' => $projectName,
@@ -320,7 +320,7 @@ class FileManagementService
         ];
 
         foreach ($files as $file) {
-            $relativePath = $exportPath . '/' . $file->original_name;
+            $relativePath = $exportPath.'/'.$file->original_name;
 
             $contents = $this->storage->download($file->bucket, $file->path);
 
@@ -359,7 +359,7 @@ class FileManagementService
         $manifest = json_decode($manifestContent, true);
 
         if ($manifest === null) {
-            throw new \RuntimeException("Invalid manifest file");
+            throw new \RuntimeException('Invalid manifest file');
         }
 
         $imported = [];
@@ -369,6 +369,7 @@ class FileManagementService
 
             if ($contents === null) {
                 Log::warning('supabase.import.file_missing', ['path' => $fileInfo['path']]);
+
                 continue;
             }
 

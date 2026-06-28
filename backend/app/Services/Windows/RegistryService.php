@@ -7,22 +7,24 @@ namespace App\Services\Windows;
 class RegistryService
 {
     private const HKLM = 'HKEY_LOCAL_MACHINE';
+
     private const HKCU = 'HKEY_CURRENT_USER';
+
     private const HKCR = 'HKEY_CLASSES_ROOT';
 
     public static function get(string $path, string $value, string $hive = self::HKLM): ?string
     {
-        return ComService::regRead($hive . '\\' . $path, $value);
+        return ComService::regRead($hive.'\\'.$path, $value);
     }
 
     public static function set(string $path, string $value, string $data, string $hive = self::HKLM): bool
     {
-        return ComService::regWrite($hive . '\\' . $path, $value, $data);
+        return ComService::regWrite($hive.'\\'.$path, $value, $data);
     }
 
-    public static function delete(string $path, string $value = null, string $hive = self::HKLM): bool
+    public static function delete(string $path, ?string $value = null, string $hive = self::HKLM): bool
     {
-        return ComService::regDelete($hive . '\\' . $path, $value);
+        return ComService::regDelete($hive.'\\'.$path, $value);
     }
 
     public static function getWindowsTheme(): string
@@ -35,6 +37,7 @@ class RegistryService
         if ($theme === null) {
             return 'dark';
         }
+
         return ((int) $theme) === 1 ? 'light' : 'dark';
     }
 
@@ -48,6 +51,7 @@ class RegistryService
         if ($theme === null) {
             return 'dark';
         }
+
         return ((int) $theme) === 1 ? 'light' : 'dark';
     }
 
@@ -62,6 +66,7 @@ class RegistryService
             return null;
         }
         $dec = (int) $color;
+
         return sprintf('#%06X', $dec & 0x00FFFFFF);
     }
 
@@ -72,6 +77,7 @@ class RegistryService
             'ColorPrevalence',
             self::HKCU
         );
+
         return $val !== null && ((int) $val) === 1;
     }
 
@@ -82,6 +88,7 @@ class RegistryService
             'EnableTransparency',
             self::HKCU
         );
+
         return $val !== null && ((int) $val) === 1;
     }
 
@@ -95,6 +102,7 @@ class RegistryService
         if ($val === null) {
             return 1.0;
         }
+
         return ((int) $val) / 96.0;
     }
 
@@ -105,6 +113,7 @@ class RegistryService
             'Settings',
             self::HKCU
         );
+
         return 'bottom';
     }
 
@@ -115,6 +124,7 @@ class RegistryService
             'HighContrast',
             self::HKCU
         );
+
         return $val !== null && ((int) $val) === 1;
     }
 
@@ -135,6 +145,7 @@ class RegistryService
             'ProxyOverride',
             self::HKCU
         );
+
         return [
             'enabled' => $enabled !== null && ((int) $enabled) === 1,
             'server' => $server ?? '',
@@ -156,6 +167,7 @@ class RegistryService
                 ];
             }
         }
+
         return $fonts;
     }
 
@@ -188,6 +200,7 @@ class RegistryService
                 $settings[trim($m[1])] = trim($m[2]);
             }
         }
+
         return $settings;
     }
 }

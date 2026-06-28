@@ -7,7 +7,7 @@ namespace Tests\Unit\Services;
 use App\Models\AnalyticsEvent;
 use App\Models\FeatureUsage;
 use App\Models\PageView;
-use App\Models\PerformanceSnapshot;
+use App\Models\User;
 use App\Services\Analytics\AnalyticsService;
 use App\Services\Analytics\PerformanceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -102,7 +102,7 @@ class AnalyticsServiceTest extends TestCase
 
     public function test_get_user_activity(): void
     {
-        $user = \App\Models\User::factory()->create();
+        $user = User::factory()->create();
 
         AnalyticsEvent::factory()->count(5)->create([
             'user_id' => $user->id,

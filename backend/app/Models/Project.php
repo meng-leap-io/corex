@@ -18,8 +18,11 @@ class Project extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     public const string STATUS_DRAFT = 'draft';
+
     public const string STATUS_ACTIVE = 'active';
+
     public const string STATUS_ARCHIVED = 'archived';
+
     public const string STATUS_DELETED = 'deleted';
 
     public const array STATUSES = [
@@ -30,7 +33,9 @@ class Project extends Model
     ];
 
     public const string VISIBILITY_PRIVATE = 'private';
+
     public const string VISIBILITY_TEAM = 'team';
+
     public const string VISIBILITY_PUBLIC = 'public';
 
     public const array VISIBILITIES = [
@@ -68,7 +73,7 @@ class Project extends Model
     {
         static::creating(function (Project $project) {
             if (empty($project->slug)) {
-                $project->slug = Str::slug($project->name) . '-' . Str::random(6);
+                $project->slug = Str::slug($project->name).'-'.Str::random(6);
             }
             if (empty($project->status)) {
                 $project->status = self::STATUS_DRAFT;
@@ -83,7 +88,7 @@ class Project extends Model
             $project->is_public ??= false;
         });
 
-        static::addGlobalScope(new RlsScope());
+        static::addGlobalScope(new RlsScope);
     }
 
     public function user(): BelongsTo
@@ -123,6 +128,10 @@ class Project extends Model
 
     public function isAccessibleBy(User $user): bool
     {
+        if ($user->is_admin) {
+            return true;
+        }
+
         if ($this->isOwnedBy($user)) {
             return true;
         }
@@ -218,8 +227,8 @@ class Project extends Model
     {
         return $query->where(function (Builder $q) use ($term) {
             $q->where('name', 'ilike', "%{$term}%")
-              ->orWhere('description', 'ilike', "%{$term}%")
-              ->orWhere('language', 'ilike', "%{$term}%");
+                ->orWhere('description', 'ilike', "%{$term}%")
+                ->orWhere('language', 'ilike', "%{$term}%");
         });
     }
 
@@ -233,17 +242,27 @@ class Project extends Model
         return $query->where('is_public', false);
     }
 
+    public function scopeWithoutArchived(Builder $query): Builder
+    {
+        return $query->where('status', '!=', self::STATUS_ARCHIVED);
+    }
+
+    public function isPublic(): bool
+    {
+        return $this->visibility === self::VISIBILITY_PUBLIC;
+    }
+
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
         return $query->where(function (Builder $q) use ($user) {
             $q->where('user_id', $user->id)
-              ->orWhere('is_public', true)
-              ->orWhereHas('members', function (Builder $mq) use ($user) {
-                  $mq->where('user_id', $user->id);
-              })
-              ->orWhereHas('teams.members', function (Builder $tq) use ($user) {
-                  $tq->where('user_id', $user->id);
-              });
+                ->orWhere('is_public', true)
+                ->orWhereHas('members', function (Builder $mq) use ($user) {
+                    $mq->where('user_id', $user->id);
+                })
+                ->orWhereHas('teams.members', function (Builder $tq) use ($user) {
+                    $tq->where('user_id', $user->id);
+                });
         });
     }
 }

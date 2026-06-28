@@ -21,6 +21,8 @@ return new class extends Migration
 
             $table->decimal('total_cost', 10, 6)->default(0);
 
+            $table->timestampTz('archived_at')->nullable();
+
             $table->timestampsTz();
 
             $table->index(['user_id', 'created_at']);

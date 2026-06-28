@@ -104,13 +104,13 @@ class ProjectExport extends Component
             $this->dispatch('notify', message: "Exported {$result['file_count']} files.");
         } catch (\Throwable $e) {
             $this->exporting = false;
-            $this->dispatch('notify', message: 'Export failed: ' . $e->getMessage(), type: 'error');
+            $this->dispatch('notify', message: 'Export failed: '.$e->getMessage(), type: 'error');
         }
     }
 
     public function import(): void
     {
-        if (!$this->importToken) {
+        if (! $this->importToken) {
             $this->dispatch('notify', message: 'Provide an export path or token.', type: 'warning');
 
             return;
@@ -130,11 +130,11 @@ class ProjectExport extends Component
             $this->importing = false;
             $this->importToken = null;
 
-            $this->dispatch('notify', message: 'Imported ' . count($files) . ' files.');
+            $this->dispatch('notify', message: 'Imported '.count($files).' files.');
             $this->dispatch('refresh');
         } catch (\Throwable $e) {
             $this->importing = false;
-            $this->dispatch('notify', message: 'Import failed: ' . $e->getMessage(), type: 'error');
+            $this->dispatch('notify', message: 'Import failed: '.$e->getMessage(), type: 'error');
         }
     }
 

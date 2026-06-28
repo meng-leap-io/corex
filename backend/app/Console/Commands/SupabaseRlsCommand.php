@@ -51,12 +51,12 @@ class SupabaseRlsCommand extends Command
             }
 
             $rlsStatus = DB::connection($connection)
-                ->select("
+                ->select('
                     SELECT relname as table_name, relrowsecurity as rls_enabled, relforcerowsecurity as rls_forced
                     FROM pg_class
                     WHERE relrowsecurity = true OR relforcerowsecurity = true
                     ORDER BY relname
-                ");
+                ');
 
             if (empty($rlsStatus)) {
                 $this->warn('No tables with RLS enabled found.');
@@ -94,7 +94,7 @@ class SupabaseRlsCommand extends Command
     {
         $userRef = $this->option('user');
 
-        if (!$userRef) {
+        if (! $userRef) {
             $this->error('--user option is required (user ID or email).');
 
             return Command::FAILURE;
@@ -102,7 +102,7 @@ class SupabaseRlsCommand extends Command
 
         $user = User::where('id', $userRef)->orWhere('email', $userRef)->first();
 
-        if (!$user) {
+        if (! $user) {
             $this->error("User not found: {$userRef}");
 
             return Command::FAILURE;
@@ -118,7 +118,7 @@ class SupabaseRlsCommand extends Command
     {
         $userRef = $this->option('user');
 
-        if (!$userRef) {
+        if (! $userRef) {
             $this->error('--user option is required (user ID or email).');
 
             return Command::FAILURE;
@@ -126,7 +126,7 @@ class SupabaseRlsCommand extends Command
 
         $user = User::where('id', $userRef)->orWhere('email', $userRef)->first();
 
-        if (!$user) {
+        if (! $user) {
             $this->error("User not found: {$userRef}");
 
             return Command::FAILURE;
@@ -231,8 +231,8 @@ class SupabaseRlsCommand extends Command
             $this->newLine();
 
             $adminBypass = config('supabase.rls.admin_bypass', true);
-            $this->line("Admin bypass: " . ($adminBypass ? 'Enabled' : 'Disabled'));
-            $this->line("Total policies: " . count($policies));
+            $this->line('Admin bypass: '.($adminBypass ? 'Enabled' : 'Disabled'));
+            $this->line('Total policies: '.count($policies));
         } catch (\Throwable $e) {
             $this->error("Failed to verify RLS: {$e->getMessage()}");
 

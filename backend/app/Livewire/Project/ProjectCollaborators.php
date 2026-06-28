@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\Project;
 
 use App\Models\Project;
-use App\Services\Supabase\SupabaseRealtimeService;
 use Illuminate\View\View;
 use Livewire\Component;
 

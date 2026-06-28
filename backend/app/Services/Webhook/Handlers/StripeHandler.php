@@ -45,12 +45,12 @@ class StripeHandler
         $userId = $object['metadata']['user_id'] ?? null;
         $customerEmail = $object['customer_email'] ?? null;
 
-        if (!$userId && $customerEmail) {
+        if (! $userId && $customerEmail) {
             $user = User::where('email', $customerEmail)->first();
             $userId = $user?->id;
         }
 
-        if (!$userId) {
+        if (! $userId) {
             Log::warning('webhook.stripe.no_user', [
                 'customer' => $object['customer'],
                 'subscription' => $object['id'],
@@ -68,10 +68,10 @@ class StripeHandler
                 'stripe_status' => $object['status'],
                 'stripe_price' => $object['items']['data'][0]['price']['id'] ?? null,
                 'quantity' => $object['quantity'] ?? 1,
-                'trial_ends_at' => $object['trial_end']
+                'trial_ends_at' => ! empty($object['trial_end'])
                     ? now()->setTimestamp($object['trial_end'])
                     : null,
-                'ends_at' => $object['cancel_at_period_end']
+                'ends_at' => ! empty($object['cancel_at_period_end']) && ! empty($object['current_period_end'])
                     ? now()->setTimestamp($object['current_period_end'])
                     : null,
             ],

@@ -13,7 +13,9 @@ class Subscription extends Model
     use HasFactory, HasUuids;
 
     public const PLAN_FREE = 'free';
+
     public const PLAN_PRO = 'pro';
+
     public const PLAN_TEAM = 'team';
 
     public const PLANS = [
@@ -23,10 +25,15 @@ class Subscription extends Model
     ];
 
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_INACTIVE = 'inactive';
+
     public const STATUS_TRIALING = 'trialing';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_EXPIRED = 'expired';
+
     public const STATUS_PAST_DUE = 'past_due';
 
     public const STATUSES = [
@@ -70,7 +77,7 @@ class Subscription extends Model
             if (empty($subscription->status)) {
                 $subscription->status = self::STATUS_ACTIVE;
             }
-            if (!isset($subscription->quantity)) {
+            if (! isset($subscription->quantity)) {
                 $subscription->quantity = 1;
             }
         });
@@ -100,7 +107,7 @@ class Subscription extends Model
 
     public function isActive(): bool
     {
-        return $this->status === self::STATUS_ACTIVE && (!$this->ends_at || $this->ends_at->isFuture());
+        return $this->status === self::STATUS_ACTIVE && (! $this->ends_at || $this->ends_at->isFuture());
     }
 
     public function isOnTrial(): bool
@@ -110,7 +117,7 @@ class Subscription extends Model
 
     public function isCancelled(): bool
     {
-        return !is_null($this->cancelled_at);
+        return ! is_null($this->cancelled_at);
     }
 
     public function isExpired(): bool
@@ -154,6 +161,7 @@ class Subscription extends Model
         if ($this->ends_at) {
             return max(0, now()->diffInDays($this->ends_at, false));
         }
+
         return null;
     }
 
@@ -162,6 +170,7 @@ class Subscription extends Model
         if ($this->trial_ends_at) {
             return max(0, now()->diffInDays($this->trial_ends_at, false));
         }
+
         return null;
     }
 
@@ -189,7 +198,7 @@ class Subscription extends Model
     {
         return $query->where(function (Builder $q) {
             $q->where('status', self::STATUS_EXPIRED)
-              ->orWhere('ends_at', '<=', now());
+                ->orWhere('ends_at', '<=', now());
         });
     }
 

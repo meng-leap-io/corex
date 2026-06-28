@@ -5,10 +5,8 @@ namespace Tests\Unit\Middleware;
 use App\Http\Middleware\CheckAdminRole;
 use App\Http\Middleware\SetRlsContext;
 use App\Models\User;
-use App\Services\Supabase\RlsContextService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class RlsMiddlewareTest extends TestCase

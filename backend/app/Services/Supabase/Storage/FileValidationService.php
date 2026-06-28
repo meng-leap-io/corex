@@ -29,21 +29,21 @@ class FileValidationService
         $maxHeight = $rules['max_height'] ?? null;
 
         if ($file->getSize() > $maxSize) {
-            $errors[] = "File exceeds maximum size of " . ($maxSize / 1024 / 1024) . "MB.";
+            $errors[] = 'File exceeds maximum size of '.($maxSize / 1024 / 1024).'MB.';
         }
 
         if ($file->getSize() < $minSize) {
-            $errors[] = "File is below minimum size of " . $minSize . " bytes.";
+            $errors[] = 'File is below minimum size of '.$minSize.' bytes.';
         }
 
-        if (!empty($allowedMimes) && !in_array($file->getMimeType(), $allowedMimes, true)) {
-            $errors[] = "File type '{$file->getMimeType()}' is not allowed. Allowed: " . implode(', ', $allowedMimes);
+        if (! empty($allowedMimes) && ! in_array($file->getMimeType(), $allowedMimes, true)) {
+            $errors[] = "File type '{$file->getMimeType()}' is not allowed. Allowed: ".implode(', ', $allowedMimes);
         }
 
-        if (!empty($allowedExtensions)) {
+        if (! empty($allowedExtensions)) {
             $ext = strtolower($file->getClientOriginalExtension());
-            if (!in_array($ext, $allowedExtensions, true)) {
-                $errors[] = "File extension '.{$ext}' is not allowed. Allowed: " . implode(', ', $allowedExtensions);
+            if (! in_array($ext, $allowedExtensions, true)) {
+                $errors[] = "File extension '.{$ext}' is not allowed. Allowed: ".implode(', ', $allowedExtensions);
             }
         }
 
@@ -59,7 +59,7 @@ class FileValidationService
     {
         $errors = [];
 
-        if (!str_starts_with($file->getMimeType() ?? '', 'image/')) {
+        if (! str_starts_with($file->getMimeType() ?? '', 'image/')) {
             return $errors;
         }
 

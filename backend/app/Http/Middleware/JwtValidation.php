@@ -3,8 +3,10 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use Firebase\JWT\ExpiredException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Firebase\JWT\SignatureInvalidException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,25 +19,29 @@ class JwtValidation
     {
         $token = $this->extractToken($request);
 
-        if (!$token) {
+        if (! $token) {
             return response()->json(['message' => 'Missing authentication token.'], 401);
         }
 
         try {
             $payload = $this->decodeToken($token);
-            $request->merge(['jwt_payload' => $payload]);
+            $request->merge(['jwt_payload' => json_decode(json_encode($payload), true)]);
             $request->setUserResolver(function () use ($payload) {
                 $model = config('auth.providers.users.model');
+
                 return $model::find($payload->sub ?? null);
             });
-        } catch (\Firebase\JWT\ExpiredException $e) {
+        } catch (ExpiredException $e) {
             Log::warning('jwt_expired', ['error' => $e->getMessage()]);
+
             return response()->json(['message' => 'Token has expired.'], 401);
-        } catch (\Firebase\JWT\SignatureInvalidException $e) {
+        } catch (SignatureInvalidException $e) {
             Log::warning('jwt_invalid_signature', ['error' => $e->getMessage()]);
+
             return response()->json(['message' => 'Invalid token signature.'], 401);
         } catch (\Exception $e) {
             Log::error('jwt_validation_error', ['error' => $e->getMessage()]);
+
             return response()->json(['message' => 'Invalid authentication token.'], 401);
         }
 

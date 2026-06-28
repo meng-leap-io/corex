@@ -57,8 +57,8 @@ class WebhookLogFactory extends Factory
                 'type' => 'customer.subscription.updated',
                 'data' => [
                     'object' => [
-                        'id' => 'sub_' . fake()->regexify('[a-z0-9]{14}'),
-                        'customer' => 'cus_' . fake()->regexify('[a-z0-9]{14}'),
+                        'id' => 'sub_'.fake()->regexify('[a-z0-9]{14}'),
+                        'customer' => 'cus_'.fake()->regexify('[a-z0-9]{14}'),
                         'status' => 'active',
                         'metadata' => ['user_id' => fake()->uuid()],
                         'items' => [

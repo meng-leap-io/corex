@@ -96,13 +96,13 @@ class ConflictResolver
     {
         $modelClass = app('sync.model_map')[$conflict->table_name] ?? null;
 
-        if (!$modelClass || !class_exists($modelClass)) {
+        if (! $modelClass || ! class_exists($modelClass)) {
             throw new \RuntimeException("Cannot resolve conflict: no model class for table '{$conflict->table_name}'");
         }
 
         $model = $modelClass::find($conflict->record_id);
 
-        if (!$model) {
+        if (! $model) {
             throw new \RuntimeException("Cannot resolve conflict: record '{$conflict->record_id}' not found");
         }
 
@@ -169,7 +169,7 @@ class ConflictResolver
         $result = $local;
 
         foreach ($remote as $key => $value) {
-            if (!in_array($key, $localPrefixed, true) && !isset($local[$key])) {
+            if (! in_array($key, $localPrefixed, true) && ! isset($local[$key])) {
                 $result[$key] = $value;
             }
         }
@@ -186,7 +186,7 @@ class ConflictResolver
         $result = $remote;
 
         foreach ($local as $key => $value) {
-            if (!in_array($key, $remotePrefixed, true) && !isset($remote[$key])) {
+            if (! in_array($key, $remotePrefixed, true) && ! isset($remote[$key])) {
                 $result[$key] = $value;
             }
         }

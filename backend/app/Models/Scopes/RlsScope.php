@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Scopes;
 
+use App\Services\Supabase\RlsContextService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -19,18 +20,18 @@ class RlsScope implements Scope
 
         $rlsEnabled = config("supabase.rls.connection.{$connectionName}", false);
 
-        if (!$rlsEnabled) {
+        if (! $rlsEnabled) {
             return;
         }
 
-        if (!config("supabase.rls.tables.{$table}", true)) {
+        if (! config("supabase.rls.tables.{$table}", true)) {
             return;
         }
 
         $userIdField = config("supabase.rls.user_id_field.{$table}", 'user_id');
 
         try {
-            $rlsService = app(\App\Services\Supabase\RlsContextService::class);
+            $rlsService = app(RlsContextService::class);
             $currentUserId = $rlsService->getCurrentUserId();
 
             if ($currentUserId) {

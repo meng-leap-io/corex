@@ -35,7 +35,7 @@ class ProcessWebhookJob implements ShouldQueue
     {
         $log = WebhookLog::find($this->logId);
 
-        if (!$log) {
+        if (! $log) {
             Log::warning('webhook.job.log_not_found', ['log_id' => $this->logId]);
 
             return;

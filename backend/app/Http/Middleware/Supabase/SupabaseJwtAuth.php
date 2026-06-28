@@ -20,7 +20,7 @@ class SupabaseJwtAuth
     {
         $token = $this->extractToken($request);
 
-        if (!$token) {
+        if (! $token) {
             return response()->json([
                 'message' => 'Authentication required.',
                 'error' => 'missing_token',
@@ -29,7 +29,7 @@ class SupabaseJwtAuth
 
         $user = $this->authService->verifySupabaseToken($token);
 
-        if (!$user) {
+        if (! $user) {
             Log::warning('supabase.auth.invalid_token', [
                 'ip' => $request->ip(),
                 'path' => $request->path(),

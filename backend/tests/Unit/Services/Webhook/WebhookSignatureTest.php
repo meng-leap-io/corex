@@ -80,7 +80,7 @@ class WebhookSignatureTest extends TestCase
     public function test_verifies_github_signature(): void
     {
         $payload = json_encode(['action' => 'test']);
-        $expected = 'sha256=' . hash_hmac('sha256', $payload, $this->testSecret);
+        $expected = 'sha256='.hash_hmac('sha256', $payload, $this->testSecret);
 
         $request = Request::create('/webhooks/github', 'POST', [], [], [], [], $payload);
         $request->headers->set('x-hub-signature-256', $expected);
@@ -123,7 +123,7 @@ class WebhookSignatureTest extends TestCase
     {
         $payload = '{"event":"test"}';
         $timestamp = (string) time();
-        $data = $timestamp . '.' . $payload;
+        $data = $timestamp.'.'.$payload;
         $signature = hash_hmac('sha256', $data, $this->testSecret);
 
         $this->assertTrue(

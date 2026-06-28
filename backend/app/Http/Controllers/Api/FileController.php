@@ -131,7 +131,7 @@ class FileController extends Controller
             readfile($localPath);
         }, 200, [
             'Content-Type' => $file->mime_type ?? 'application/octet-stream',
-            'Content-Disposition' => 'attachment; filename="' . $file->original_name . '"',
+            'Content-Disposition' => 'attachment; filename="'.$file->original_name.'"',
             'Content-Length' => filesize($localPath),
         ]);
     }

@@ -44,7 +44,7 @@ trait Syncable
         $this->mergeFillable(['sync_version']);
         $this->mergeCasts(['sync_version' => 'integer']);
 
-        if (!in_array('sync_version', $this->appends ?? [])) {
+        if (! in_array('sync_version', $this->appends ?? [])) {
             $this->appends[] = 'sync_version';
         }
     }
@@ -101,7 +101,7 @@ trait Syncable
 
     public function queueSync(string $action = 'upsert'): void
     {
-        if (!$this->syncEnabled || !config('supabase.sync.enabled') || !config('supabase.sync.auto_sync')) {
+        if (! $this->syncEnabled || ! config('supabase.sync.enabled') || ! config('supabase.sync.auto_sync')) {
             return;
         }
 
@@ -144,6 +144,11 @@ trait Syncable
     public function getSyncVersion(): int
     {
         return (int) ($this->sync_version ?? 0);
+    }
+
+    public function getSyncVersionAttribute(): int
+    {
+        return $this->getSyncVersion();
     }
 
     public function incrementSyncVersion(): void

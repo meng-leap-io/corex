@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\AiUsageLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,11 +24,11 @@ class AIController extends Controller
                     'provider',
                     'model',
                 )
-                ->when($request->from, fn($q, $v) => $q->byDateRange($v, $request->to ?? now()))
+                ->when($request->from, fn ($q, $v) => $q->byDateRange($v, $request->to ?? now()))
                 ->groupBy('provider', 'model')
                 ->orderByDesc('total_tokens')
                 ->get()
-                ->map(fn($row) => [
+                ->map(fn ($row) => [
                     'provider' => $row->provider,
                     'model' => $row->model,
                     'total_tokens' => (int) $row->total_tokens,
@@ -64,7 +63,7 @@ class AIController extends Controller
             $daily = $request->user()
                 ->aiUsageLogs()
                 ->select(
-                    DB::raw("DATE(created_at) as date"),
+                    DB::raw('DATE(created_at) as date'),
                     DB::raw('SUM(prompt_tokens + completion_tokens) as total_tokens'),
                     DB::raw('SUM(cost) as total_cost'),
                     DB::raw('COUNT(*) as total_requests'),
@@ -74,7 +73,7 @@ class AIController extends Controller
                 ->groupBy('date')
                 ->orderBy('date')
                 ->get()
-                ->map(fn($row) => [
+                ->map(fn ($row) => [
                     'date' => $row->date,
                     'total_tokens' => (int) $row->total_tokens,
                     'total_cost' => (float) $row->total_cost,

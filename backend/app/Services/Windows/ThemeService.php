@@ -57,7 +57,7 @@ class ThemeService
 
     public static function fontScale(): float
     {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return 1.0;
         }
         $val = ComService::regRead(
@@ -67,6 +67,7 @@ class ThemeService
         if ($val === null) {
             return 1.0;
         }
+
         return ((int) $val) / 96.0;
     }
 
@@ -117,7 +118,7 @@ class ThemeService
     {
         $hex = ltrim($hex, '#');
         if (strlen($hex) === 3) {
-            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+            $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
         }
         $r = hexdec(substr($hex, 0, 2));
         $g = hexdec(substr($hex, 2, 2));
@@ -125,6 +126,7 @@ class ThemeService
         $r = max(0, min(255, $r + $percent));
         $g = max(0, min(255, $g + $percent));
         $b = max(0, min(255, $b + $percent));
+
         return sprintf('#%02x%02x%02x', $r, $g, $b);
     }
 

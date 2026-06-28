@@ -8,7 +8,6 @@ use App\Models\AiUsageLog;
 use App\Models\CodeGeneration;
 use App\Models\Conversation;
 use App\Models\Subscription;
-use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;

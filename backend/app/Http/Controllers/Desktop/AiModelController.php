@@ -18,10 +18,10 @@ class AiModelController extends Controller
 
         $localModels = [];
         try {
-            $response = \Http::timeout(3)->get(self::OLLAMA_API . '/api/tags');
+            $response = \Http::timeout(3)->get(self::OLLAMA_API.'/api/tags');
             if ($response->successful()) {
                 $localModels = collect($response->json('models', []))
-                    ->map(fn($m) => [
+                    ->map(fn ($m) => [
                         'name' => $m['name'],
                         'size' => $m['size'] ?? 0,
                         'modified' => $m['modified_at'] ?? null,
@@ -49,7 +49,7 @@ class AiModelController extends Controller
         }
 
         try {
-            \Http::timeout(5)->post(self::OLLAMA_API . '/api/pull', [
+            \Http::timeout(5)->post(self::OLLAMA_API.'/api/pull', [
                 'name' => $model,
                 'stream' => false,
             ]);
@@ -68,7 +68,7 @@ class AiModelController extends Controller
         }
 
         try {
-            \Http::timeout(5)->delete(self::OLLAMA_API . '/api/delete', [
+            \Http::timeout(5)->delete(self::OLLAMA_API.'/api/delete', [
                 'name' => $model,
             ]);
 
@@ -84,7 +84,7 @@ class AiModelController extends Controller
         $ollamaVersion = null;
 
         try {
-            $response = \Http::timeout(3)->get(self::OLLAMA_API . '/api/version');
+            $response = \Http::timeout(3)->get(self::OLLAMA_API.'/api/version');
             if ($response->successful()) {
                 $ollamaRunning = true;
                 $ollamaVersion = $response->json('version');
@@ -104,6 +104,7 @@ class AiModelController extends Controller
         try {
             $gatewayUrl = config('services.ai_gateway.url', 'http://127.0.0.1:8000');
             $response = \Http::timeout(2)->get("{$gatewayUrl}/health");
+
             return $response->successful();
         } catch (\Throwable) {
             return false;

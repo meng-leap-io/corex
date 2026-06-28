@@ -18,8 +18,8 @@ class ConversationController extends Controller
         try {
             $conversations = $request->user()
                 ->conversations()
-                ->when($request->project_id, fn($q, $v) => $q->byProject($v))
-                ->when($request->model, fn($q, $v) => $q->byModel($v))
+                ->when($request->project_id, fn ($q, $v) => $q->byProject($v))
+                ->when($request->model, fn ($q, $v) => $q->byModel($v))
                 ->orderBy('created_at', 'desc')
                 ->paginate($request->input('per_page', 20));
 

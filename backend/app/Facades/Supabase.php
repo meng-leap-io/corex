@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Facades;
 
+use App\Services\Supabase\SupabaseService;
 use Illuminate\Support\Facades\Facade;
 
 /**
@@ -23,12 +24,12 @@ use Illuminate\Support\Facades\Facade;
  * @method static array rpc(string $function, array $params = [])
  * @method static bool isConnected()
  *
- * @see \App\Services\Supabase\SupabaseService
+ * @see SupabaseService
  */
 class Supabase extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return \App\Services\Supabase\SupabaseService::class;
+        return SupabaseService::class;
     }
 }

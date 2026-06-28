@@ -17,47 +17,52 @@ return new class extends Migration
 
         DB::unprepared('-- RLS Helper Functions
 
+CREATE SCHEMA IF NOT EXISTS app;
+
 CREATE OR REPLACE FUNCTION app.current_user_id()
 RETURNS uuid
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 PARALLEL SAFE
 AS $$
-  SELECT COALESCE(
-    NULLIF(current_setting(\'app.current_user_id\', true), \'\')::uuid,
-    auth.uid()
-  );
+BEGIN
+  RETURN NULLIF(current_setting(\'app.current_user_id\', true), \'\')::uuid;
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION app.current_user_role()
 RETURNS text
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 PARALLEL SAFE
 AS $$
-  SELECT COALESCE(
+BEGIN
+  RETURN COALESCE(
     NULLIF(current_setting(\'app.current_user_role\', true), \'\'),
-    auth.role(),
     \'anonymous\'
   );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION app.is_admin()
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 PARALLEL SAFE
 AS $$
-  SELECT app.current_user_role() = \'admin\';
+BEGIN
+  RETURN app.current_user_role() = \'admin\';
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION app.is_team_member(project_id uuid)
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 PARALLEL SAFE
 AS $$
-  SELECT EXISTS (
+BEGIN
+  RETURN EXISTS (
     SELECT 1 FROM project_user pu
     WHERE pu.project_id = $1
       AND pu.user_id = app.current_user_id()
@@ -67,15 +72,17 @@ AS $$
     WHERE pt.project_id = $1
       AND tu.user_id = app.current_user_id()
   );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION app.user_has_team_access(project_id uuid, min_role text DEFAULT \'member\')
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 PARALLEL SAFE
 AS $$
-  SELECT EXISTS (
+BEGIN
+  RETURN EXISTS (
     SELECT 1 FROM project_user pu
     WHERE pu.project_id = $1
       AND pu.user_id = app.current_user_id()
@@ -95,6 +102,7 @@ AS $$
         ELSE true
       END
   );
+END;
 $$;
 ');
 

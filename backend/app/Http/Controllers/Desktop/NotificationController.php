@@ -39,6 +39,7 @@ class NotificationController extends Controller
     {
         try {
             native()->notification()->clear();
+
             return response()->json(['cleared' => true]);
         } catch (\Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 500);

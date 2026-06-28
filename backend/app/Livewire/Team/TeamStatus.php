@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Livewire\Team;
 
-use App\Services\Supabase\SupabaseRealtimeService;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -51,7 +49,7 @@ class TeamStatus extends Component
     {
         $member = $payload['member'] ?? [];
 
-        if (!empty($member)) {
+        if (! empty($member)) {
             $this->members[] = $member;
             $this->totalMembers = count($this->members);
         }

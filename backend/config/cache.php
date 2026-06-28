@@ -22,5 +22,5 @@ return [
             'driver' => 'octane',
         ],
     ],
-    'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'corex'), '_') . '_cache_'),
+    'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'corex'), '_').'_cache_'),
 ];

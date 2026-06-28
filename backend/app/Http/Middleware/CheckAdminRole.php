@@ -17,11 +17,11 @@ class CheckAdminRole
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return $this->denied($request);
         }
 
-        if (!$this->isAdmin($user)) {
+        if (! $this->isAdmin($user)) {
             return $this->denied($request);
         }
 
@@ -30,7 +30,7 @@ class CheckAdminRole
 
     public static function isAdmin(?User $user): bool
     {
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Services\Auth;
 
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -42,13 +44,13 @@ class SupabaseSessionService
         ];
 
         Cache::put(
-            self::SESSION_CACHE_PREFIX . $sessionId,
+            self::SESSION_CACHE_PREFIX.$sessionId,
             $sessionData,
             now()->addMinutes($this->sessionCacheMinutes),
         );
 
         Cache::put(
-            self::SESSION_CACHE_PREFIX . 'user_' . $user->id,
+            self::SESSION_CACHE_PREFIX.'user_'.$user->id,
             $sessionId,
             now()->addMinutes($this->sessionCacheMinutes),
         );
@@ -71,23 +73,24 @@ class SupabaseSessionService
     public function refreshSession(string $refreshToken): ?array
     {
         try {
-            $response = \Illuminate\Support\Facades\Http::withHeaders([
+            $response = Http::withHeaders([
                 'apikey' => config('supabase.key'),
-                'Authorization' => 'Bearer ' . config('supabase.key'),
+                'Authorization' => 'Bearer '.config('supabase.key'),
                 'Content-Type' => 'application/json',
-            ])->post(rtrim(config('supabase.url'), '/') . '/auth/v1/token?grant_type=refresh_token', [
+            ])->post(rtrim(config('supabase.url'), '/').'/auth/v1/token?grant_type=refresh_token', [
                 'refresh_token' => $refreshToken,
             ]);
 
             if ($response->failed()) {
                 Log::warning('session.refresh_failed', ['status' => $response->status()]);
+
                 return null;
             }
 
             $data = $response->json();
             $user = User::where('supabase_id', $data['user']['id'])->first();
 
-            if (!$user) {
+            if (! $user) {
                 return null;
             }
 
@@ -100,20 +103,21 @@ class SupabaseSessionService
 
         } catch (\Throwable $e) {
             Log::error('session.refresh_error', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
 
     public function getSession(string $sessionId): ?array
     {
-        return Cache::get(self::SESSION_CACHE_PREFIX . $sessionId);
+        return Cache::get(self::SESSION_CACHE_PREFIX.$sessionId);
     }
 
     public function getCurrentSession(User $user): ?array
     {
-        $sessionId = Cache::get(self::SESSION_CACHE_PREFIX . 'user_' . $user->id);
+        $sessionId = Cache::get(self::SESSION_CACHE_PREFIX.'user_'.$user->id);
 
-        if (!$sessionId) {
+        if (! $sessionId) {
             return null;
         }
 
@@ -122,14 +126,14 @@ class SupabaseSessionService
 
     public function destroySession(User $user, ?string $sessionId = null): void
     {
-        $sid = $sessionId ?? Cache::get(self::SESSION_CACHE_PREFIX . 'user_' . $user->id);
+        $sid = $sessionId ?? Cache::get(self::SESSION_CACHE_PREFIX.'user_'.$user->id);
 
         if ($sid) {
-            Cache::forget(self::SESSION_CACHE_PREFIX . $sid);
+            Cache::forget(self::SESSION_CACHE_PREFIX.$sid);
         }
 
-        Cache::forget(self::SESSION_CACHE_PREFIX . 'user_' . $user->id);
-        Cache::forget(self::OFFLINE_CACHE_PREFIX . $user->id);
+        Cache::forget(self::SESSION_CACHE_PREFIX.'user_'.$user->id);
+        Cache::forget(self::OFFLINE_CACHE_PREFIX.$user->id);
 
         Cookie::queue(Cookie::forget(self::REMEMBER_COOKIE));
 
@@ -138,12 +142,12 @@ class SupabaseSessionService
 
     public function touchSession(string $sessionId): void
     {
-        $session = Cache::get(self::SESSION_CACHE_PREFIX . $sessionId);
+        $session = Cache::get(self::SESSION_CACHE_PREFIX.$sessionId);
 
         if ($session) {
             $session['last_activity'] = now()->toIso8601String();
             Cache::put(
-                self::SESSION_CACHE_PREFIX . $sessionId,
+                self::SESSION_CACHE_PREFIX.$sessionId,
                 $session,
                 now()->addMinutes($this->sessionCacheMinutes),
             );
@@ -154,20 +158,20 @@ class SupabaseSessionService
     {
         $cookie = Cookie::get(self::REMEMBER_COOKIE);
 
-        if (!$cookie) {
+        if (! $cookie) {
             return null;
         }
 
         try {
             $data = Crypt::decrypt($cookie);
 
-            if (!isset($data['refresh_token']) || !isset($data['user_id'])) {
+            if (! isset($data['refresh_token']) || ! isset($data['user_id'])) {
                 return null;
             }
 
             $user = User::find($data['user_id']);
 
-            if (!$user) {
+            if (! $user) {
                 return null;
             }
 
@@ -175,6 +179,7 @@ class SupabaseSessionService
 
         } catch (\Throwable $e) {
             Log::warning('session.remember_cookie_invalid', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -182,7 +187,7 @@ class SupabaseSessionService
     public function isSessionExpired(array $session): bool
     {
         $lastActivity = $session['last_activity'] ?? $session['created_at'];
-        $expiresAt = \Carbon\Carbon::parse($lastActivity)->addMinutes($this->sessionCacheMinutes);
+        $expiresAt = Carbon::parse($lastActivity)->addMinutes($this->sessionCacheMinutes);
 
         return now()->gt($expiresAt);
     }
@@ -212,7 +217,7 @@ class SupabaseSessionService
 
     private function cacheOfflineCredentials(User $user, string $accessToken, string $refreshToken): void
     {
-        Cache::put(self::OFFLINE_CACHE_PREFIX . $user->id, [
+        Cache::put(self::OFFLINE_CACHE_PREFIX.$user->id, [
             'user_id' => $user->id,
             'email' => $user->email,
             'name' => $user->name,
@@ -225,12 +230,12 @@ class SupabaseSessionService
 
     public function getOfflineCredentials(User $user): ?array
     {
-        return Cache::get(self::OFFLINE_CACHE_PREFIX . $user->id);
+        return Cache::get(self::OFFLINE_CACHE_PREFIX.$user->id);
     }
 
     public function hasOfflineSession(User $user): bool
     {
-        return Cache::has(self::OFFLINE_CACHE_PREFIX . $user->id);
+        return Cache::has(self::OFFLINE_CACHE_PREFIX.$user->id);
     }
 
     public function cleanupExpiredSessions(): int

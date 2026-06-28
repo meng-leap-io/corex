@@ -8,7 +8,6 @@ use App\Jobs\ProcessWebhookJob;
 use App\Models\WebhookEndpoint;
 use App\Models\WebhookLog;
 use App\Services\Supabase\SupabaseService;
-use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -41,7 +40,7 @@ class WebhookService
         $log = $this->createLog($request, $provider);
 
         try {
-            if (!$this->verifySignature($request, $provider)) {
+            if (! $this->verifySignature($request, $provider)) {
                 $log->markFailed('Invalid signature');
                 Log::warning('webhook.signature_invalid', [
                     'provider' => $provider,
@@ -265,7 +264,7 @@ class WebhookService
     {
         $log = WebhookLog::find($logId);
 
-        if (!$log || $log->status !== 'failed') {
+        if (! $log || $log->status !== 'failed') {
             return false;
         }
 
@@ -318,7 +317,7 @@ class WebhookService
 
             $body = $response->json() ?? [];
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('webhook.edge_function_error', [
                     'function' => $functionName,
                     'status' => $response->status(),
@@ -360,7 +359,7 @@ class WebhookService
     {
         $config = $this->router->getConfig($request->path());
 
-        if ($config && !$config['verify_signature']) {
+        if ($config && ! $config['verify_signature']) {
             return true;
         }
 
@@ -376,7 +375,7 @@ class WebhookService
     {
         $config = $this->router->getConfig($request->path());
 
-        if ($config && !$config['rate_limit']) {
+        if ($config && ! $config['rate_limit']) {
             return false;
         }
 

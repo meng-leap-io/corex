@@ -14,8 +14,8 @@ class PageViewFactory extends Factory
     public function definition(): array
     {
         return [
-            'path' => '/' . $this->faker->randomElement(['console', 'chat', 'settings', 'files', 'editor', 'terminal', 'api']),
-            'route' => 'console.' . $this->faker->word(),
+            'path' => '/'.$this->faker->randomElement(['console', 'chat', 'settings', 'files', 'editor', 'terminal', 'api']),
+            'route' => 'console.'.$this->faker->word(),
             'method' => 'GET',
             'status_code' => $this->faker->randomElement([200, 200, 200, 200, 201, 301, 404, 500]),
             'duration_ms' => $this->faker->randomFloat(2, 5, 5000),

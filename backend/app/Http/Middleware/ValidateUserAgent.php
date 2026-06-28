@@ -100,7 +100,7 @@ class ValidateUserAgent
     private function hasBlockedUserAgent(Request $request): bool
     {
         $ua = $request->userAgent();
-        if (!$ua) {
+        if (! $ua) {
             return false;
         }
 
@@ -150,7 +150,7 @@ class ValidateUserAgent
         }
 
         foreach ($request->query() as $key => $value) {
-            if (!is_string($value)) {
+            if (! is_string($value)) {
                 continue;
             }
 

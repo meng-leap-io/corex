@@ -14,7 +14,7 @@ class CodeGenerationFactory extends Factory
             'user_id' => User::factory(),
             'project_id' => Project::factory(),
             'prompt' => fake()->sentence(10),
-            'code_generated' => "<?php\n\nnamespace App\\Services;\n\nclass " . fake()->word() . "\n{\n    public function handle(): void\n    {\n        // " . fake()->sentence() . "\n    }\n}",
+            'code_generated' => "<?php\n\nnamespace App\\Services;\n\nclass ".fake()->word()."\n{\n    public function handle(): void\n    {\n        // ".fake()->sentence()."\n    }\n}",
             'language' => fake()->randomElement(['PHP', 'JavaScript', 'TypeScript', 'Python', 'Go']),
             'model_used' => fake()->randomElement(['gpt-4o', 'claude-3-sonnet']),
             'tokens_used' => fake()->numberBetween(200, 6000),
@@ -25,7 +25,7 @@ class CodeGenerationFactory extends Factory
 
     public function failed(): static
     {
-        return $this->state(fn() => [
+        return $this->state(fn () => [
             'code_generated' => '',
             'status' => 'failed',
         ]);

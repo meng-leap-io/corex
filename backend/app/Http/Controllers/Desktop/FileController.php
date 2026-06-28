@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Desktop;
 
+use App\Contracts\SupabaseStorageContract;
 use App\Http\Controllers\Controller;
 use App\Models\File;
 use App\Services\Supabase\Storage\FileManagementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
 
 class FileController extends Controller
 {
@@ -25,7 +26,7 @@ class FileController extends Controller
 
         $path = $request->input('path');
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             return new JsonResponse(['error' => 'File not found.'], 404);
         }
 
@@ -57,7 +58,7 @@ class FileController extends Controller
 
         $dir = dirname($path);
 
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
@@ -86,12 +87,12 @@ class FileController extends Controller
         $bucket = $request->input('bucket', 'projects');
         $directory = $request->input('directory');
 
-        if (!file_exists($localPath)) {
+        if (! file_exists($localPath)) {
             return new JsonResponse(['error' => 'Local file not found.'], 404);
         }
 
         try {
-            $uploadedFile = new \Illuminate\Http\UploadedFile(
+            $uploadedFile = new UploadedFile(
                 $localPath,
                 basename($localPath),
                 mime_content_type($localPath),
@@ -146,7 +147,7 @@ class FileController extends Controller
         $localPath = $request->input('local_path');
         $fileId = $request->input('file_id');
 
-        if (!file_exists($localPath)) {
+        if (! file_exists($localPath)) {
             return new JsonResponse(['error' => 'Local file not found.'], 404);
         }
 
@@ -160,7 +161,7 @@ class FileController extends Controller
                     return new JsonResponse(['error' => 'Forbidden.'], 403);
                 }
 
-                $url = app(\App\Contracts\SupabaseStorageContract::class)
+                $url = app(SupabaseStorageContract::class)
                     ->upload($file->bucket, $file->path, $content, ['upsert' => true]);
 
                 $file->update(['url' => $url, 'size' => strlen($content)]);
@@ -168,7 +169,7 @@ class FileController extends Controller
                 return new JsonResponse(['data' => $file, 'message' => 'File synced.']);
             }
 
-            $uploadedFile = new \Illuminate\Http\UploadedFile(
+            $uploadedFile = new UploadedFile(
                 $localPath,
                 basename($localPath),
                 mime_content_type($localPath),
@@ -200,7 +201,7 @@ class FileController extends Controller
         $path = $request->input('path');
         $depth = $request->input('depth', 2);
 
-        if (!is_dir($path)) {
+        if (! is_dir($path)) {
             return new JsonResponse(['error' => 'Directory not found.'], 404);
         }
 
@@ -224,7 +225,7 @@ class FileController extends Controller
                 continue;
             }
 
-            $fullPath = $path . DIRECTORY_SEPARATOR . $entry;
+            $fullPath = $path.DIRECTORY_SEPARATOR.$entry;
 
             if (is_dir($fullPath)) {
                 $item = [

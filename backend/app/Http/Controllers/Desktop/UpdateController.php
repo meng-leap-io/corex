@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 class UpdateController extends Controller
 {
     private const UPDATE_CACHE_KEY = '_native_update_info';
+
     private const UPDATE_CACHE_TTL = 3600;
 
     public function check(): JsonResponse
@@ -69,13 +70,13 @@ class UpdateController extends Controller
         }
 
         try {
-            $tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'corex-update';
+            $tempDir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'corex-update';
             if (! is_dir($tempDir)) {
                 mkdir($tempDir, 0755, true);
             }
 
             $filename = basename(parse_url($url, PHP_URL_PATH));
-            $destPath = $tempDir . DIRECTORY_SEPARATOR . $filename;
+            $destPath = $tempDir.DIRECTORY_SEPARATOR.$filename;
 
             $response = \Http::timeout(300)->sink($destPath)->get($url);
 

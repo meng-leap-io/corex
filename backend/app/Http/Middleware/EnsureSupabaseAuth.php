@@ -23,7 +23,7 @@ class EnsureSupabaseAuth
             ?? $request->input('supabase_token')
             ?? $request->cookie('sb-access-token');
 
-        if (!$supabaseToken) {
+        if (! $supabaseToken) {
             if ($request->user()) {
                 return $next($request);
             }
@@ -33,7 +33,7 @@ class EnsureSupabaseAuth
 
         $user = $this->resolveUserFromToken($supabaseToken);
 
-        if (!$user) {
+        if (! $user) {
             try {
                 $response = $this->supabase->post('/auth/v1/user', [], [
                     'headers' => ['Authorization' => "Bearer {$supabaseToken}"],
@@ -44,7 +44,7 @@ class EnsureSupabaseAuth
 
                     $localUser = User::where('supabase_id', $supabaseUser['id'])->first();
 
-                    if (!$localUser) {
+                    if (! $localUser) {
                         $localUser = User::where('email', $supabaseUser['email'])->first();
 
                         if ($localUser) {
@@ -66,7 +66,7 @@ class EnsureSupabaseAuth
             }
         }
 
-        if (!$user) {
+        if (! $user) {
             return $this->unauthorized($request);
         }
 

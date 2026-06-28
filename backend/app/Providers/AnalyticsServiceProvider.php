@@ -13,11 +13,11 @@ class AnalyticsServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(AnalyticsService::class, function () {
-            return new AnalyticsService();
+            return new AnalyticsService;
         });
 
         $this->app->singleton(PerformanceService::class, function () {
-            return new PerformanceService();
+            return new PerformanceService;
         });
     }
 

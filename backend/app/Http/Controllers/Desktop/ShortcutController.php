@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Desktop;
 
 use App\Http\Controllers\Controller;
+use App\Services\Windows\ComService;
 use App\Services\Windows\FileAssociationService;
 use App\Services\Windows\JumpListService;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +24,7 @@ class ShortcutController extends Controller
             'arguments' => 'nullable|string|max:1000',
         ]);
 
-        $created = \App\Services\Windows\ComService::createShortcut(
+        $created = ComService::createShortcut(
             $validated['path'],
             $validated['target'],
             $validated['description'] ?? '',
@@ -38,6 +39,7 @@ class ShortcutController extends Controller
     public function registerProtocol(Request $request): JsonResponse
     {
         $scheme = $request->input('scheme', 'corex');
+
         return response()->json([
             'registered' => FileAssociationService::registerProtocol($scheme),
         ]);
@@ -46,6 +48,7 @@ class ShortcutController extends Controller
     public function unregisterProtocol(Request $request): JsonResponse
     {
         $scheme = $request->input('scheme', 'corex');
+
         return response()->json([
             'unregistered' => FileAssociationService::unregisterProtocol($scheme),
         ]);
@@ -154,6 +157,7 @@ class ShortcutController extends Controller
     public function jumpListClear(): JsonResponse
     {
         JumpListService::clear();
+
         return response()->json(['cleared' => true]);
     }
 
@@ -174,6 +178,7 @@ class ShortcutController extends Controller
     public function refreshExplorer(): JsonResponse
     {
         FileAssociationService::refreshExplorer();
+
         return response()->json(['refreshed' => true]);
     }
 }

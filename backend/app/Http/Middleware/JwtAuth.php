@@ -21,7 +21,7 @@ class JwtAuth
     {
         $token = $this->extractToken($request);
 
-        if (!$token) {
+        if (! $token) {
             return response()->json([
                 'message' => 'Authentication required.',
                 'code' => 'MISSING_TOKEN',
@@ -42,24 +42,28 @@ class JwtAuth
             return $next($request);
         } catch (ExpiredException $e) {
             Log::warning('jwt.expired', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Token has expired. Please refresh your token.',
                 'code' => 'TOKEN_EXPIRED',
             ], 401);
         } catch (SignatureInvalidException $e) {
             Log::warning('jwt.invalid_signature', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Invalid token signature.',
                 'code' => 'INVALID_SIGNATURE',
             ], 401);
         } catch (\UnexpectedValueException $e) {
             Log::warning('jwt.malformed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Malformed token.',
                 'code' => 'MALFORMED_TOKEN',
             ], 401);
         } catch (\Exception $e) {
             Log::error('jwt.validation_failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'message' => 'Authentication failed.',
                 'code' => 'AUTH_FAILED',
@@ -86,7 +90,7 @@ class JwtAuth
     {
         $algorithm = config('jwt.algorithm', 'HS256');
 
-        if (!in_array($algorithm, self::ALLOWED_ALGORITHMS, true)) {
+        if (! in_array($algorithm, self::ALLOWED_ALGORITHMS, true)) {
             throw new \RuntimeException("Unsupported JWT algorithm: {$algorithm}");
         }
 
@@ -103,14 +107,14 @@ class JwtAuth
 
     private function setUserResolver(Request $request, ?string $userId): void
     {
-        if (!$userId) {
+        if (! $userId) {
             return;
         }
 
         $request->setUserResolver(function () use ($userId) {
             $modelClass = config('auth.providers.users.model');
 
-            if (!$modelClass || !class_exists($modelClass)) {
+            if (! $modelClass || ! class_exists($modelClass)) {
                 return null;
             }
 

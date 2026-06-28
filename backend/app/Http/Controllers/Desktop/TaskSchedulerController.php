@@ -21,9 +21,10 @@ class TaskSchedulerController extends Controller
     public function show(string $taskName): JsonResponse
     {
         $details = TaskSchedulerService::getTaskDetails($taskName);
-        if (!$details) {
+        if (! $details) {
             return response()->json(['error' => 'Task not found'], 404);
         }
+
         return response()->json(['task' => $details]);
     }
 
@@ -92,18 +93,21 @@ class TaskSchedulerController extends Controller
     {
         $hour = (int) $request->input('hour', 2);
         $minute = (int) $request->input('minute', 0);
+
         return response()->json(['scheduled' => TaskSchedulerService::scheduleBackup($hour, $minute)]);
     }
 
     public function scheduleHealthCheck(Request $request): JsonResponse
     {
         $interval = (int) $request->input('interval_minutes', 5);
+
         return response()->json(['scheduled' => TaskSchedulerService::scheduleHealthCheck($interval)]);
     }
 
     public function clearAll(): JsonResponse
     {
         TaskSchedulerService::clearAllCorexTasks();
+
         return response()->json(['cleared' => true]);
     }
 }

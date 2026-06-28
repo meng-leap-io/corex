@@ -34,12 +34,12 @@ class UserFactory extends Factory
 
     public function unverified(): static
     {
-        return $this->state(fn() => ['email_verified_at' => null]);
+        return $this->state(fn () => ['email_verified_at' => null]);
     }
 
     public function pro(): static
     {
-        return $this->state(fn() => [
+        return $this->state(fn () => [
             'plan' => 'pro',
             'plan_expires_at' => now()->addYear(),
             'api_usage_limit' => 10000,
@@ -48,7 +48,7 @@ class UserFactory extends Factory
 
     public function team(): static
     {
-        return $this->state(fn() => [
+        return $this->state(fn () => [
             'plan' => 'team',
             'plan_expires_at' => now()->addYear(),
             'api_usage_limit' => 50000,
@@ -57,7 +57,7 @@ class UserFactory extends Factory
 
     public function oauth(string $provider): static
     {
-        return $this->state(fn() => [
+        return $this->state(fn () => [
             'password' => null,
             'provider' => $provider,
             'provider_id' => fake()->uuid(),

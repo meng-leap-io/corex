@@ -24,11 +24,11 @@ class UserController extends Controller
     {
         try {
             $users = User::query()
-                ->when($request->plan, fn($q, $v) => $q->onPlan($v))
-                ->when($request->verified, fn($q, $v) => $v ? $q->verified() : $q->unverified())
-                ->when($request->search, fn($q, $v) => $q->where(function ($q) use ($v) {
+                ->when($request->plan, fn ($q, $v) => $q->onPlan($v))
+                ->when($request->verified, fn ($q, $v) => $v ? $q->verified() : $q->unverified())
+                ->when($request->search, fn ($q, $v) => $q->where(function ($q) use ($v) {
                     $q->where('name', 'ilike', "%{$v}%")
-                      ->orWhere('email', 'ilike', "%{$v}%");
+                        ->orWhere('email', 'ilike', "%{$v}%");
                 }))
                 ->orderBy('created_at', 'desc')
                 ->paginate($request->input('per_page', 20));
@@ -114,7 +114,7 @@ class UserController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user) {
+            if (! $user) {
                 return $this->unauthenticated();
             }
 
@@ -137,7 +137,7 @@ class UserController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user) {
+            if (! $user) {
                 return $this->unauthenticated();
             }
 

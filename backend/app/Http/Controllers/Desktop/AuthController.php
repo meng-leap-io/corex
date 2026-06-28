@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -117,11 +118,11 @@ class AuthController extends Controller
 
             if ($request->wantsJson()) {
                 return response()->json([
-                    'message' => 'Registration failed: ' . $e->getMessage(),
+                    'message' => 'Registration failed: '.$e->getMessage(),
                 ], 500);
             }
 
-            return back()->withErrors(['email' => 'Registration failed: ' . $e->getMessage()]);
+            return back()->withErrors(['email' => 'Registration failed: '.$e->getMessage()]);
         }
     }
 
@@ -146,7 +147,7 @@ class AuthController extends Controller
             $supabaseUser = $supabaseResult['user'];
             $user = User::where('supabase_id', $supabaseUser['id'])->first();
 
-            if (!$user) {
+            if (! $user) {
                 $user = User::where('email', $validated['email'])->first();
 
                 if ($user) {
@@ -213,7 +214,7 @@ class AuthController extends Controller
             $validated['password'],
         );
 
-        if (!$user) {
+        if (! $user) {
             if ($request->wantsJson()) {
                 return response()->json(['message' => 'Invalid credentials or no offline session.'], 401);
             }
@@ -221,7 +222,7 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Invalid credentials or no offline session.']);
         }
 
-        if (!$this->offlineCache->hasCachedSession($user->id)) {
+        if (! $this->offlineCache->hasCachedSession($user->id)) {
             if ($request->wantsJson()) {
                 return response()->json(['message' => 'No cached session found. Connect to internet first.'], 401);
             }
@@ -255,7 +256,7 @@ class AuthController extends Controller
             try {
                 $session = $this->sessionService->getCurrentSession($user);
 
-                if ($session && !empty($session['access_token'])) {
+                if ($session && ! empty($session['access_token'])) {
                     $this->supabase->signOut($session['access_token']);
                 }
             } catch (\Throwable $e) {
@@ -288,7 +289,7 @@ class AuthController extends Controller
     {
         $code = $request->input('code');
 
-        if (!$code) {
+        if (! $code) {
             $error = $request->input('error_description', 'OAuth authentication failed.');
 
             return redirect('/login')->withErrors(['oauth' => $error]);
@@ -300,7 +301,7 @@ class AuthController extends Controller
 
             $user = $this->supabase->verifySupabaseToken($session['access_token']);
 
-            if (!$user) {
+            if (! $user) {
                 return redirect('/login')->withErrors(['oauth' => 'Failed to resolve user.']);
             }
 
@@ -374,21 +375,21 @@ class AuthController extends Controller
         ]);
 
         try {
-            $response = \Illuminate\Support\Facades\Http::withHeaders([
+            $response = Http::withHeaders([
                 'apikey' => config('supabase.key'),
-                'Authorization' => 'Bearer ' . config('supabase.key'),
+                'Authorization' => 'Bearer '.config('supabase.key'),
                 'Content-Type' => 'application/json',
-            ])->post(rtrim(config('supabase.url'), '/') . '/auth/v1/verify', [
+            ])->post(rtrim(config('supabase.url'), '/').'/auth/v1/verify', [
                 'type' => 'recovery',
                 'token' => $validated['token'],
                 'password' => $validated['password'],
             ]);
 
             if ($response->failed()) {
-                throw new \RuntimeException('Password update failed: ' . $response->body());
+                throw new \RuntimeException('Password update failed: '.$response->body());
             }
 
-            Log::info('desktop.auth.password_updated', ['token' => substr($validated['token'], 0, 8) . '...']);
+            Log::info('desktop.auth.password_updated', ['token' => substr($validated['token'], 0, 8).'...']);
 
             if ($request->wantsJson()) {
                 return response()->json(['message' => 'Password updated successfully.']);
@@ -413,7 +414,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return $this->unauthenticated();
         }
 
@@ -426,11 +427,11 @@ class AuthController extends Controller
         }
 
         try {
-            \Illuminate\Support\Facades\Http::withHeaders([
+            Http::withHeaders([
                 'apikey' => config('supabase.key'),
-                'Authorization' => 'Bearer ' . config('supabase.key'),
+                'Authorization' => 'Bearer '.config('supabase.key'),
                 'Content-Type' => 'application/json',
-            ])->post(rtrim(config('supabase.url'), '/') . '/auth/v1/verify', [
+            ])->post(rtrim(config('supabase.url'), '/').'/auth/v1/verify', [
                 'type' => 'signup',
                 'email' => $user->email,
             ]);
@@ -461,22 +462,22 @@ class AuthController extends Controller
     {
         $token = $request->input('token');
 
-        if (!$token) {
+        if (! $token) {
             return redirect('/login')->withErrors(['verification' => 'Invalid verification token.']);
         }
 
         try {
-            $response = \Illuminate\Support\Facades\Http::withHeaders([
+            $response = Http::withHeaders([
                 'apikey' => config('supabase.key'),
-                'Authorization' => 'Bearer ' . config('supabase.key'),
+                'Authorization' => 'Bearer '.config('supabase.key'),
                 'Content-Type' => 'application/json',
-            ])->post(rtrim(config('supabase.url'), '/') . '/auth/v1/verify', [
+            ])->post(rtrim(config('supabase.url'), '/').'/auth/v1/verify', [
                 'type' => 'signup',
                 'token' => $token,
             ]);
 
             if ($response->failed()) {
-                throw new \RuntimeException('Verification failed: ' . $response->body());
+                throw new \RuntimeException('Verification failed: '.$response->body());
             }
 
             $email = $response->json()['email'] ?? null;
@@ -502,7 +503,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'authenticated' => false,
                 'offline' => $this->offlineCache->isOfflineMode(),
@@ -538,13 +539,13 @@ class AuthController extends Controller
         $userId = $request->input('user_id');
         $password = $request->input('password');
 
-        if (!$userId || !$password) {
+        if (! $userId || ! $password) {
             return response()->json(['message' => 'User ID and password required.'], 400);
         }
 
         $targetUser = User::find($userId);
 
-        if (!$targetUser || !Hash::check($password, $targetUser->password)) {
+        if (! $targetUser || ! Hash::check($password, $targetUser->password)) {
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 

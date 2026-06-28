@@ -100,7 +100,7 @@ class FileManager extends Component
             $this->dispatch('fileUploaded');
             $this->dispatch('notify', message: 'File uploaded successfully.');
         } catch (\Throwable $e) {
-            $this->dispatch('notify', message: 'Upload failed: ' . $e->getMessage(), type: 'error');
+            $this->dispatch('notify', message: 'Upload failed: '.$e->getMessage(), type: 'error');
         }
     }
 
@@ -125,7 +125,7 @@ class FileManager extends Component
                 $this->dispatch('fileDeleted');
                 $this->dispatch('notify', message: 'File deleted.');
             } catch (\Throwable $e) {
-                $this->dispatch('notify', message: 'Delete failed: ' . $e->getMessage(), type: 'error');
+                $this->dispatch('notify', message: 'Delete failed: '.$e->getMessage(), type: 'error');
             }
         }
     }
@@ -180,9 +180,9 @@ class FileManager extends Component
         }
 
         if ($size < 1024 * 1024) {
-            return round($size / 1024, 1) . ' KB';
+            return round($size / 1024, 1).' KB';
         }
 
-        return round($size / (1024 * 1024), 1) . ' MB';
+        return round($size / (1024 * 1024), 1).' MB';
     }
 }

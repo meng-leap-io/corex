@@ -12,7 +12,7 @@ class WebhookEndpointFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->company() . ' Webhook',
+            'name' => fake()->company().' Webhook',
             'url' => fake()->url(),
             'secret' => fake()->sha256(),
             'events' => ['*'],

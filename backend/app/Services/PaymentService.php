@@ -23,7 +23,7 @@ class PaymentService
             'user_id' => $user->id,
             'plan' => $plan,
             'status' => Subscription::STATUS_ACTIVE,
-            'stripe_id' => 'sub_mock_' . uniqid(),
+            'stripe_id' => 'sub_mock_'.uniqid(),
             'stripe_status' => 'active',
             'stripe_price' => $stripePriceId,
             'quantity' => 1,
@@ -193,7 +193,7 @@ class PaymentService
         $subscription = $user->subscription;
 
         return [
-            'has_active_subscription' => !is_null($subscription),
+            'has_active_subscription' => ! is_null($subscription),
             'current_plan' => $user->plan,
             'plan' => $subscription ? [
                 'id' => $subscription->id,

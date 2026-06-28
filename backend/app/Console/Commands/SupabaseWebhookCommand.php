@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\WebhookEndpoint;
-use App\Models\WebhookLog;
 use App\Services\Webhook\WebhookService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 
 class SupabaseWebhookCommand extends Command
 {
@@ -61,7 +61,7 @@ class SupabaseWebhookCommand extends Command
     {
         $logId = $this->option('log');
 
-        if (!$logId) {
+        if (! $logId) {
             $this->error('--log option is required');
 
             return Command::FAILURE;
@@ -109,7 +109,7 @@ class SupabaseWebhookCommand extends Command
             ['Name', 'URL', 'Events', 'Status', 'Retries'],
             $endpoints->map(fn ($e) => [
                 $e->name,
-                \Illuminate\Support\Str::limit($e->url, 40),
+                Str::limit($e->url, 40),
                 implode(', ', $e->events ?? []),
                 $e->status,
                 $e->retry_count,
@@ -124,7 +124,7 @@ class SupabaseWebhookCommand extends Command
         $function = $this->option('function');
         $payloadJson = $this->option('payload');
 
-        if (!$function) {
+        if (! $function) {
             $this->error('--function option is required');
 
             return Command::FAILURE;

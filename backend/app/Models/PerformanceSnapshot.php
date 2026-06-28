@@ -12,6 +12,8 @@ class PerformanceSnapshot extends Model
 {
     use HasFactory, HasUuids;
 
+    const CREATED_AT = 'recorded_at';
+
     const UPDATED_AT = null;
 
     protected $fillable = [

@@ -5,8 +5,7 @@
          colors="true"
          cacheDirectory=".phpunit.cache"
          executionOrder="depends,defects"
-         displayDetailsOnPhpUnitDeprecations="true"
-         failOnPhpunitDeprecation="true"
+          failOnPhpunitDeprecation="true"
          failOnEmptyTestSuite="true"
          failOnWarning="true"
 >
@@ -34,7 +33,7 @@
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_DEBUG" value="true"/>
-        <env name="APP_KEY" value="base64:testkey1234567890123456789012345678901234567890123="/>
+        <env name="APP_KEY" value="base64:qampkiYE42d5Jy0oJSJ4vi+dUEEw5kOmH9OqinHiRcE="/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="SESSION_DRIVER" value="array"/>

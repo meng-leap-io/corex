@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Webhook;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class WebhookSignature
 {
@@ -23,9 +22,9 @@ class WebhookSignature
     public function sign(array $payload, ?int $timestamp = null): string
     {
         $timestamp = $timestamp ?? time();
-        $data = $timestamp . '.' . json_encode($payload);
+        $data = $timestamp.'.'.json_encode($payload);
 
-        return $timestamp . '.' . hash_hmac('sha256', $data, $this->secret);
+        return $timestamp.'.'.hash_hmac('sha256', $data, $this->secret);
     }
 
     public function verify(Request $request): bool
@@ -34,14 +33,14 @@ class WebhookSignature
             ?? $request->header('x-webhook-signature')
             ?? $request->input('signature');
 
-        if (!$signature) {
+        if (! $signature) {
             return false;
         }
 
         $timestamp = $request->header('X-Webhook-Timestamp')
             ?? $request->header('x-webhook-timestamp');
 
-        if (!$this->isTimestampValid($timestamp)) {
+        if (! $this->isTimestampValid($timestamp)) {
             return false;
         }
 
@@ -52,7 +51,7 @@ class WebhookSignature
 
     public function verifyPayload(string $payload, ?string $timestamp, string $signature): bool
     {
-        $data = $timestamp . '.' . $payload;
+        $data = $timestamp.'.'.$payload;
         $expected = hash_hmac('sha256', $data, $this->secret);
 
         return hash_equals($expected, $signature);
@@ -62,7 +61,7 @@ class WebhookSignature
     {
         $signature = $request->header('stripe-signature');
 
-        if (!$signature) {
+        if (! $signature) {
             return false;
         }
 
@@ -83,7 +82,7 @@ class WebhookSignature
                 }
             }
 
-            if (!$timestamp || !$sig) {
+            if (! $timestamp || ! $sig) {
                 return false;
             }
 
@@ -101,7 +100,7 @@ class WebhookSignature
         $signature = $request->header('svix-signature')
             ?? $request->header('webhook-signature');
 
-        if (!$signature) {
+        if (! $signature) {
             return false;
         }
 
@@ -125,19 +124,19 @@ class WebhookSignature
     {
         $signature = $request->header('x-hub-signature-256');
 
-        if (!$signature) {
+        if (! $signature) {
             return false;
         }
 
         $payload = $request->getContent();
-        $expected = 'sha256=' . hash_hmac('sha256', $payload, $this->secret);
+        $expected = 'sha256='.hash_hmac('sha256', $payload, $this->secret);
 
         return hash_equals($expected, $signature);
     }
 
     public function isTimestampValid(?string $timestamp, int $maxAge = 300): bool
     {
-        if (!$timestamp) {
+        if (! $timestamp) {
             return false;
         }
 

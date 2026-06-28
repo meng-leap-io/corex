@@ -16,8 +16,11 @@ class Message extends Model
     const UPDATED_AT = null;
 
     public const string ROLE_USER = 'user';
+
     public const string ROLE_ASSISTANT = 'assistant';
+
     public const string ROLE_SYSTEM = 'system';
+
     public const string ROLE_TOOL = 'tool';
 
     public const array ROLES = [

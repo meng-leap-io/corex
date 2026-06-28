@@ -23,9 +23,9 @@ class ProjectController extends Controller
         try {
             $projects = $request->user()
                 ->projects()
-                ->when($request->status, fn($q, $v) => $q->byStatus($v))
-                ->when($request->language, fn($q, $v) => $q->byLanguage($v))
-                ->when($request->search, fn($q, $v) => $q->search($v))
+                ->when($request->status, fn ($q, $v) => $q->byStatus($v))
+                ->when($request->language, fn ($q, $v) => $q->byLanguage($v))
+                ->when($request->search, fn ($q, $v) => $q->search($v))
                 ->orderBy('last_accessed_at', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->paginate($request->input('per_page', 20));
@@ -81,7 +81,7 @@ class ProjectController extends Controller
     public function show(Project $project): JsonResponse
     {
         try {
-            $project->load(['conversations' => fn($q) => $q->recent(5)]);
+            $project->load(['conversations' => fn ($q) => $q->recent(5)]);
             $project->touchLastAccessed();
 
             return $this->success(
@@ -109,7 +109,7 @@ class ProjectController extends Controller
                 'framework' => ['nullable', 'string', 'max:50'],
                 'files' => ['nullable', 'array'],
                 'structure' => ['nullable', 'array'],
-                'status' => ['sometimes', 'string', 'in:' . implode(',', Project::STATUSES)],
+                'status' => ['sometimes', 'string', 'in:'.implode(',', Project::STATUSES)],
             ]);
 
             $project->update($validated);
@@ -155,7 +155,7 @@ class ProjectController extends Controller
     {
         try {
             $duplicated = $project->replicate(['slug', 'last_accessed_at', 'status']);
-            $duplicated->name = $project->name . ' (Copy)';
+            $duplicated->name = $project->name.' (Copy)';
             $duplicated->status = Project::STATUS_DRAFT;
 
             $request->user()->projects()->save($duplicated);

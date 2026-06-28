@@ -13,8 +13,11 @@ class CodeGeneration extends Model
     use HasFactory, HasUuids;
 
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_FAILED = 'failed';
+
     public const STATUS_PROCESSING = 'processing';
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUSES = [
@@ -50,10 +53,10 @@ class CodeGeneration extends Model
             if (empty($generation->status)) {
                 $generation->status = self::STATUS_PENDING;
             }
-            if (!isset($generation->tokens_used)) {
+            if (! isset($generation->tokens_used)) {
                 $generation->tokens_used = 0;
             }
-            if (!isset($generation->cost)) {
+            if (! isset($generation->cost)) {
                 $generation->cost = 0;
             }
         });
@@ -84,8 +87,10 @@ class CodeGeneration extends Model
     {
         if ($this->tokens_used > 0) {
             $charCount = strlen($this->code_generated ?? '');
+
             return round($charCount / $this->tokens_used, 4);
         }
+
         return null;
     }
 
@@ -95,6 +100,7 @@ class CodeGeneration extends Model
         if ($lines > 0 && $this->cost > 0) {
             return round($this->cost / $lines, 8);
         }
+
         return null;
     }
 

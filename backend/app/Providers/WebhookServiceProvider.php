@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Services\Supabase\SupabaseService;
 use App\Services\Webhook\WebhookRouter;
 use App\Services\Webhook\WebhookService;
 use App\Services\Webhook\WebhookSignature;
@@ -15,7 +16,7 @@ class WebhookServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../../config/webhooks.php',
+            __DIR__.'/../../config/webhooks.php',
             'webhooks',
         );
 
@@ -24,7 +25,7 @@ class WebhookServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(WebhookRouter::class, function (Application $app) {
-            $router = new WebhookRouter();
+            $router = new WebhookRouter;
 
             $router->register('webhooks/stripe', config('webhooks.handlers.stripe'), [
                 'verify_signature' => true,
@@ -54,7 +55,7 @@ class WebhookServiceProvider extends ServiceProvider
             return new WebhookService(
                 $app->make(WebhookRouter::class),
                 $app->make(WebhookSignature::class),
-                $app->make(\App\Services\Supabase\SupabaseService::class),
+                $app->make(SupabaseService::class),
             );
         });
     }

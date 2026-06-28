@@ -62,8 +62,8 @@ class ProjectTest extends TestCase
     {
         $project = Project::factory()->create();
         $project->codeGenerations()->createMany([
-            ['user_id' => $project->user_id, 'prompt' => 'Generate API', 'generated_code' => '<?php', 'language' => 'php'],
-            ['user_id' => $project->user_id, 'prompt' => 'Generate test', 'generated_code' => 'test()', 'language' => 'php'],
+            ['user_id' => $project->user_id, 'prompt' => 'Generate API', 'code_generated' => '<?php', 'language' => 'php', 'status' => 'completed'],
+            ['user_id' => $project->user_id, 'prompt' => 'Generate test', 'code_generated' => 'test()', 'language' => 'php', 'status' => 'completed'],
         ]);
 
         $this->assertCount(2, $project->codeGenerations);

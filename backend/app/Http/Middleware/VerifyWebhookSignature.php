@@ -27,7 +27,7 @@ class VerifyWebhookSignature
             default => $verifier->verify($request),
         };
 
-        if (!$isValid) {
+        if (! $isValid) {
             return response()->json([
                 'message' => 'Invalid webhook signature',
             ], 401);

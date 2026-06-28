@@ -4,19 +4,15 @@ namespace Database\Factories;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 
 class ProjectFactory extends Factory
 {
     public function definition(): array
     {
-        $name = fake()->sentence(3);
-
         return [
             'user_id' => User::factory(),
-            'name' => $name,
+            'name' => fake()->sentence(3),
             'description' => fake()->paragraph(),
-            'slug' => Str::slug($name) . '-' . Str::random(6),
             'language' => fake()->randomElement(['PHP', 'JavaScript', 'TypeScript', 'Python', 'Go', 'Rust']),
             'framework' => fake()->randomElement(['Laravel', 'React', 'Vue.js', 'Django', 'FastAPI']),
             'files' => [
@@ -28,18 +24,18 @@ class ProjectFactory extends Factory
                 'src' => ['app.js', 'components/Header.jsx'],
                 'public' => ['index.html'],
             ],
-            'status' => fake()->randomElement(['draft', 'active']),
+            'status' => 'draft',
             'last_accessed_at' => fake()->dateTimeThisMonth(),
         ];
     }
 
     public function active(): static
     {
-        return $this->state(fn() => ['status' => 'active']);
+        return $this->state(fn () => ['status' => 'active']);
     }
 
     public function archived(): static
     {
-        return $this->state(fn() => ['status' => 'archived']);
+        return $this->state(fn () => ['status' => 'archived']);
     }
 }

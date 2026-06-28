@@ -6,7 +6,6 @@ namespace App\Console\Commands;
 
 use App\Contracts\SyncContract;
 use App\Events\Sync\SyncCompleted;
-use App\Events\Sync\SyncFailed;
 use App\Events\Sync\SyncStarted;
 use App\Services\Sync\SyncQueue;
 use Illuminate\Console\Command;
@@ -48,7 +47,7 @@ class SupabaseSyncWorkCommand extends Command
                 continue;
             }
 
-            if (!$sync->verifyConnection()) {
+            if (! $sync->verifyConnection()) {
                 $this->warn('Connection lost. Retrying in 10s...');
                 sleep(10);
 

@@ -30,6 +30,6 @@ class AiUsageLogFactory extends Factory
 
     public function failed(): static
     {
-        return $this->state(fn() => ['success' => false]);
+        return $this->state(fn () => ['success' => false]);
     }
 }

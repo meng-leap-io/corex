@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Services\Supabase\RlsContextService;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 class SetRlsContext
@@ -20,7 +21,7 @@ class SetRlsContext
         $connectionName = config('supabase.rls.db_connection', 'pgsql');
 
         try {
-            $connection = \Illuminate\Support\Facades\DB::connection($connectionName);
+            $connection = DB::connection($connectionName);
             $connection->getPdo();
         } catch (\Throwable) {
             return $next($request);

@@ -13,6 +13,8 @@ class FeatureUsage extends Model
 {
     use HasFactory, HasUuids;
 
+    protected $table = 'feature_usage';
+
     const UPDATED_AT = null;
 
     protected $fillable = [
@@ -54,5 +56,10 @@ class FeatureUsage extends Model
     public function scopeFailed($query)
     {
         return $query->where('success', false);
+    }
+
+    public function scopeSince($query, $date)
+    {
+        return $query->where('created_at', '>=', $date);
     }
 }

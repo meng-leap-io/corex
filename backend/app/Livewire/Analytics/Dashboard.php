@@ -10,8 +10,8 @@ use App\Models\PageView;
 use App\Models\PerformanceSnapshot;
 use App\Services\Analytics\AnalyticsService;
 use App\Services\Analytics\PerformanceService;
-use Livewire\Component;
 use Illuminate\Support\Facades\DB;
+use Livewire\Component;
 
 class Dashboard extends Component
 {

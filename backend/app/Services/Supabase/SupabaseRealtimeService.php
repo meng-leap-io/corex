@@ -25,7 +25,7 @@ class SupabaseRealtimeService
 
     public function __construct(
         private readonly SupabaseService $supabase,
-        private readonly OfflineQueue $offlineQueue = new OfflineQueue(),
+        private readonly OfflineQueue $offlineQueue = new OfflineQueue,
     ) {
         $this->url = rtrim(config('supabase.url', ''), '/');
         $this->key = config('supabase.realtime.key', config('supabase.key', ''));
@@ -35,7 +35,7 @@ class SupabaseRealtimeService
 
     public function channel(string $name): RealtimeChannel
     {
-        if (!isset($this->channels[$name])) {
+        if (! isset($this->channels[$name])) {
             $this->channels[$name] = new RealtimeChannel(
                 $name,
                 $this->projectRef,
@@ -69,7 +69,7 @@ class SupabaseRealtimeService
 
     public function broadcast(string $channel, string $event, array $payload): bool
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return false;
         }
 
@@ -114,7 +114,7 @@ class SupabaseRealtimeService
 
     public function trackPresence(string $channel, string $user, array $metadata = []): void
     {
-        if (!isset($this->presenceState[$channel])) {
+        if (! isset($this->presenceState[$channel])) {
             $this->presenceState[$channel] = [];
         }
 
@@ -175,7 +175,7 @@ class SupabaseRealtimeService
     public function getDatabaseChangesEndpoint(string $table, string $event = '*'): string
     {
         return "wss://{$this->projectRef}/realtime/v1/websocket?"
-            . http_build_query([
+            .http_build_query([
                 'apikey' => $this->key,
                 'table' => $table,
                 'event' => $event,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Supabase;
 
 use App\Models\User;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -156,7 +157,7 @@ class RlsContextService
         }
 
         try {
-            $result = $this->getConnection()->selectOne("SELECT auth.uid() as id");
+            $result = $this->getConnection()->selectOne('SELECT auth.uid() as id');
 
             return $result?->id;
         } catch (\Throwable) {
@@ -178,7 +179,7 @@ class RlsContextService
 
             return $callback();
         } finally {
-            if (!$previousContext) {
+            if (! $previousContext) {
                 $this->clearContext();
             }
         }
@@ -193,13 +194,13 @@ class RlsContextService
 
             return $callback();
         } finally {
-            if (!$previousContext) {
+            if (! $previousContext) {
                 $this->clearContext();
             }
         }
     }
 
-    public function getConnection(): \Illuminate\Database\Connection
+    public function getConnection(): Connection
     {
         $connectionName = config('supabase.rls.db_connection', 'pgsql');
 

@@ -29,7 +29,7 @@ class OfflineQueue
             'retry_count' => 0,
         ];
 
-        $queueKey = self::QUEUE_PREFIX . $userId;
+        $queueKey = self::QUEUE_PREFIX.$userId;
         $queue = $this->getQueue($userId);
 
         if (count($queue) >= $this->maxQueueSize) {
@@ -105,7 +105,7 @@ class OfflineQueue
 
     public function getQueue(string $userId = 'anonymous'): array
     {
-        return Cache::get(self::QUEUE_PREFIX . $userId, []);
+        return Cache::get(self::QUEUE_PREFIX.$userId, []);
     }
 
     public function queueSize(string $userId = 'anonymous'): int
@@ -115,7 +115,7 @@ class OfflineQueue
 
     public function clear(string $userId = 'anonymous'): void
     {
-        Cache::forget(self::QUEUE_PREFIX . $userId);
+        Cache::forget(self::QUEUE_PREFIX.$userId);
         $this->removeFromIndex($userId);
     }
 
@@ -146,7 +146,7 @@ class OfflineQueue
                 $this->clear($userId);
                 $pruned++;
             } else {
-                Cache::put(self::QUEUE_PREFIX . $userId, array_values($queue), now()->addDays(7));
+                Cache::put(self::QUEUE_PREFIX.$userId, array_values($queue), now()->addDays(7));
             }
         }
 
@@ -157,7 +157,7 @@ class OfflineQueue
     {
         $index = $this->getAllQueuedUsers();
 
-        if (!in_array($userId, $index, true)) {
+        if (! in_array($userId, $index, true)) {
             $index[] = $userId;
             Cache::put(self::INDEX_KEY, $index, now()->addDays(7));
         }

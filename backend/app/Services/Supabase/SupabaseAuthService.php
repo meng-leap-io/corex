@@ -6,7 +6,6 @@ namespace App\Services\Supabase;
 
 use App\Contracts\SupabaseAuthContract;
 use App\Models\User;
-use Carbon\Carbon;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -109,7 +108,7 @@ class SupabaseAuthService implements SupabaseAuthContract
             'Authorization' => "Bearer {$accessToken}",
         ])->post("{$this->url}/auth/v1/logout");
 
-        Log::info('supabase.auth.logout', ['token' => substr($accessToken, 0, 10) . '...']);
+        Log::info('supabase.auth.logout', ['token' => substr($accessToken, 0, 10).'...']);
     }
 
     public function getUser(string $accessToken): ?array
@@ -190,7 +189,7 @@ class SupabaseAuthService implements SupabaseAuthContract
         try {
             $payload = $this->decodeToken($jwt);
 
-            if (!$payload || !isset($payload['sub'])) {
+            if (! $payload || ! isset($payload['sub'])) {
                 return null;
             }
 
@@ -199,7 +198,7 @@ class SupabaseAuthService implements SupabaseAuthContract
 
             $user = User::where('supabase_id', $supabaseUserId)->first();
 
-            if (!$user && $email) {
+            if (! $user && $email) {
                 $user = User::where('email', $email)->first();
 
                 if ($user) {
@@ -207,7 +206,7 @@ class SupabaseAuthService implements SupabaseAuthContract
                 }
             }
 
-            if (!$user && $email) {
+            if (! $user && $email) {
                 $user = User::create([
                     'supabase_id' => $supabaseUserId,
                     'email' => $email,
@@ -233,9 +232,11 @@ class SupabaseAuthService implements SupabaseAuthContract
         if ($this->jwtSecret) {
             try {
                 $decoded = JWT::decode($jwt, new Key($this->jwtSecret, 'HS256'));
+
                 return (array) $decoded;
             } catch (\Throwable $e) {
                 Log::warning('supabase.auth.jwt_decode_failed', ['error' => $e->getMessage()]);
+
                 return null;
             }
         }
@@ -263,6 +264,7 @@ class SupabaseAuthService implements SupabaseAuthContract
             return (array) $decoded;
         } catch (\Throwable $e) {
             Log::error('supabase.auth.jwks_verification_failed', ['error' => $e->getMessage()]);
+
             return null;
         }
     }

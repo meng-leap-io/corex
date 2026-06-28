@@ -64,4 +64,9 @@ class PageView extends Model
     {
         return $query->where('duration_ms', '>=', $thresholdMs);
     }
+
+    public function scopeSince($query, $date)
+    {
+        return $query->where('created_at', '>=', $date);
+    }
 }

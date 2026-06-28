@@ -13,9 +13,13 @@ class AiUsageLog extends Model
     use HasFactory, HasUuids;
 
     public const PROVIDER_OPENAI = 'openai';
+
     public const PROVIDER_ANTHROPIC = 'anthropic';
+
     public const PROVIDER_GOOGLE = 'google';
+
     public const PROVIDER_AZURE = 'azure';
+
     public const PROVIDER_AWS = 'aws';
 
     public const PROVIDERS = [
@@ -54,16 +58,16 @@ class AiUsageLog extends Model
     protected static function booted(): void
     {
         static::creating(function (AiUsageLog $log) {
-            if (!isset($log->prompt_tokens)) {
+            if (! isset($log->prompt_tokens)) {
                 $log->prompt_tokens = 0;
             }
-            if (!isset($log->completion_tokens)) {
+            if (! isset($log->completion_tokens)) {
                 $log->completion_tokens = 0;
             }
-            if (!isset($log->cost)) {
+            if (! isset($log->cost)) {
                 $log->cost = 0;
             }
-            if (!isset($log->success)) {
+            if (! isset($log->success)) {
                 $log->success = true;
             }
         });
@@ -94,6 +98,7 @@ class AiUsageLog extends Model
     public function getCostPerTokenAttribute(): ?float
     {
         $totalTokens = $this->getTotalTokensAttribute();
+
         return $totalTokens > 0 ? round($this->cost / $totalTokens, 8) : null;
     }
 

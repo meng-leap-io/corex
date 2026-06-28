@@ -11,14 +11,21 @@ use Illuminate\Support\Facades\Cache;
 class CacheService
 {
     private const TTL_5MIN = 300;
+
     private const TTL_15MIN = 900;
+
     private const TTL_1HOUR = 3600;
+
     private const TTL_1DAY = 86400;
 
     public const TAG_USER = 'user';
+
     public const TAG_PROJECT = 'project';
+
     public const TAG_AI = 'ai';
+
     public const TAG_USAGE = 'usage';
+
     public const TAG_MODELS = 'models';
 
     public function getUserProjects(User $user, array $filters = []): mixed
@@ -68,7 +75,7 @@ class CacheService
         return Cache::tags([self::TAG_USER, self::TAG_USAGE])
             ->remember($key, self::TTL_15MIN, function () use ($user, $days) {
                 return $user->aiUsageLogs()
-                    ->selectRaw("DATE(created_at) as date, SUM(prompt_tokens + completion_tokens) as total_tokens, SUM(cost) as total_cost, COUNT(*) as total_requests, COUNT(CASE WHEN success = false THEN 1 END) as failed_requests")
+                    ->selectRaw('DATE(created_at) as date, SUM(prompt_tokens + completion_tokens) as total_tokens, SUM(cost) as total_cost, COUNT(*) as total_requests, COUNT(CASE WHEN success = false THEN 1 END) as failed_requests')
                     ->where('created_at', '>=', now()->subDays($days))
                     ->groupBy('date')
                     ->orderBy('date')
@@ -133,16 +140,16 @@ class CacheService
     private function projectListKey(User $user, array $filters): string
     {
         $parts = ["projects:{$user->id}"];
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $parts[] = "status:{$filters['status']}";
         }
-        if (!empty($filters['language'])) {
+        if (! empty($filters['language'])) {
             $parts[] = "lang:{$filters['language']}";
         }
-        if (!empty($filters['search'])) {
-            $parts[] = 'search:' . md5($filters['search']);
+        if (! empty($filters['search'])) {
+            $parts[] = 'search:'.md5($filters['search']);
         }
-        $parts[] = ($filters['sort'] ?? 'updated_at') . ':' . ($filters['direction'] ?? 'desc');
+        $parts[] = ($filters['sort'] ?? 'updated_at').':'.($filters['direction'] ?? 'desc');
 
         return implode(':', $parts);
     }

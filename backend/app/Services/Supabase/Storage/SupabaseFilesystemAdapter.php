@@ -5,9 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Supabase\Storage;
 
 use App\Contracts\SupabaseStorageContract;
-use Illuminate\Filesystem\FilesystemAdapter as BaseAdapter;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Log;
 use League\Flysystem\Config;
 use League\Flysystem\FileAttributes;
 use League\Flysystem\FilesystemAdapter as FlysystemAdapter;
@@ -85,7 +82,7 @@ class SupabaseFilesystemAdapter implements FlysystemAdapter
     {
         $files = $this->storage->listFiles($this->bucket, $path);
 
-        return !empty($files);
+        return ! empty($files);
     }
 
     public function deleteDirectory(string $path): bool
@@ -101,13 +98,9 @@ class SupabaseFilesystemAdapter implements FlysystemAdapter
         return $this->storage->deleteMultiple($this->bucket, $paths);
     }
 
-    public function createDirectory(string $path, Config $config): void
-    {
-    }
+    public function createDirectory(string $path, Config $config): void {}
 
-    public function setVisibility(string $path, string $visibility): void
-    {
-    }
+    public function setVisibility(string $path, string $visibility): void {}
 
     public function visibility(string $path): FileAttributes
     {

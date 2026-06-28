@@ -13,11 +13,14 @@ use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class AIService
 {
     private const CACHE_TTL_USAGE = 300;
+
     private const CACHE_TTL_MODELS = 3600;
+
     private const BATCH_THRESHOLD = 50;
 
     private const MODEL_COSTS = [
@@ -43,7 +46,7 @@ class AIService
         $async = $options['async'] ?? false;
         $generationId = $options['generation_id'] ?? null;
 
-        if (!$user->hasApiCapacity()) {
+        if (! $user->hasApiCapacity()) {
             throw new \RuntimeException('API usage limit exceeded.');
         }
 
@@ -74,10 +77,10 @@ class AIService
                     ...$options,
                 ]);
 
-            $duration = (int)((microtime(true) - $startTime) * 1000);
+            $duration = (int) ((microtime(true) - $startTime) * 1000);
             $result = $response->json();
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 $this->queueUsageLog($user, $model, 0, 0, 0, $duration, false, '/v1/chat/completions');
                 throw new \RuntimeException($result['error']['message'] ?? 'AI provider error.');
             }
@@ -107,7 +110,7 @@ class AIService
                 'duration' => $duration,
             ];
         } catch (\Throwable $e) {
-            $duration = (int)((microtime(true) - $startTime) * 1000);
+            $duration = (int) ((microtime(true) - $startTime) * 1000);
             $this->queueUsageLog($user, $model, 0, 0, 0, $duration, false, '/v1/chat/completions');
 
             Log::error('ai.chat_completion_failed', [
@@ -127,8 +130,8 @@ class AIService
         $projectId = $options['project_id'] ?? null;
         $async = $options['async'] ?? false;
 
-        $systemPrompt = "You are a code generation assistant. Generate clean, well-documented code."
-            . ($language ? " Use {$language}." : '');
+        $systemPrompt = 'You are a code generation assistant. Generate clean, well-documented code.'
+            .($language ? " Use {$language}." : '');
 
         if ($async) {
             $generation = CodeGeneration::create([
@@ -184,7 +187,7 @@ class AIService
     public function createEmbedding(User $user, string|array $input, array $options = []): array
     {
         $model = $options['model'] ?? 'text-embedding-3-small';
-        $cacheKey = 'embedding:' . md5(serialize($input));
+        $cacheKey = 'embedding:'.md5(serialize($input));
 
         $cached = Cache::get($cacheKey);
         if ($cached) {
@@ -201,10 +204,10 @@ class AIService
                     'input' => $input,
                 ]);
 
-            $duration = (int)((microtime(true) - $startTime) * 1000);
+            $duration = (int) ((microtime(true) - $startTime) * 1000);
             $result = $response->json();
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 throw new \RuntimeException($result['error']['message'] ?? 'Embedding provider error.');
             }
 
@@ -225,7 +228,7 @@ class AIService
 
             return $data;
         } catch (\Throwable $e) {
-            $duration = (int)((microtime(true) - $startTime) * 1000);
+            $duration = (int) ((microtime(true) - $startTime) * 1000);
             $this->queueUsageLog($user, $model, 0, 0, 0, $duration, false, '/v1/embeddings');
 
             Log::error('ai.embedding_failed', [
@@ -248,6 +251,11 @@ class AIService
         return self::MODEL_COSTS[$model] ?? ['input' => 0, 'output' => 0];
     }
 
+    public function checkUsageLimit(User $user): bool
+    {
+        return $user->hasApiCapacity();
+    }
+
     public function getDailyUsageAggregated(User $user, int $days = 30): array
     {
         $cached = $this->cacheService->getDailyUsage($user, $days);
@@ -268,7 +276,7 @@ class AIService
 
             foreach ($chunk as $log) {
                 $insertData[] = [
-                    'id' => (string) \Illuminate\Support\Str::uuid(),
+                    'id' => (string) Str::uuid(),
                     'user_id' => $log['user_id'],
                     'provider' => $log['provider'],
                     'model' => $log['model'],
@@ -289,9 +297,10 @@ class AIService
         }
     }
 
-    private function calculateCost(string $model, int $promptTokens, int $completionTokens): float
+    public function calculateCost(string $model, int $promptTokens, int $completionTokens): float
     {
         $costs = $this->getModelCost($model);
+
         return ($promptTokens * $costs['input']) + ($completionTokens * $costs['output']);
     }
 

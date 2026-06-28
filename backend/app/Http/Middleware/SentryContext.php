@@ -5,13 +5,14 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Sentry\State\Scope;
+
 use function Sentry\configureScope;
 
 class SentryContext
 {
     public function handle(Request $request, Closure $next): mixed
     {
-        if (!app()->bound('sentry')) {
+        if (! app()->bound('sentry')) {
             return $next($request);
         }
 

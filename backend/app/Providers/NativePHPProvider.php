@@ -50,12 +50,14 @@ class NativePHPProvider extends ServiceProvider
                 $connection = @fsockopen($host, 443, $errno, $errstr, 2);
                 if (is_resource($connection)) {
                     fclose($connection);
+
                     return true;
                 }
             } catch (\Throwable) {
                 continue;
             }
         }
+
         return false;
     }
 }

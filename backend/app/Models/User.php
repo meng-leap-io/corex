@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Scopes\RlsScope;
-use App\Traits\HasEncryptedAttributes;
+use App\Traits\Syncable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,14 +17,15 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\HasApiTokens;
-use App\Traits\Syncable;
 
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, HasUuids, Notifiable, SoftDeletes, Syncable;
 
     public const string ROLE_USER = 'user';
+
     public const string ROLE_ADMIN = 'admin';
+
     public const string ROLE_MODERATOR = 'moderator';
 
     public const array ROLES = [
@@ -34,7 +35,9 @@ class User extends Authenticatable
     ];
 
     public const string PLAN_FREE = 'free';
+
     public const string PLAN_PRO = 'pro';
+
     public const string PLAN_TEAM = 'team';
 
     public const array PLANS = [
@@ -90,22 +93,23 @@ class User extends Authenticatable
     protected static function booted(): void
     {
         static::creating(function (User $user) {
+            $user->plan ??= self::PLAN_FREE;
             $user->role ??= self::ROLE_USER;
-            if (!isset($user->attributes['api_usage_limit'])) {
+            if (! isset($user->attributes['api_usage_limit'])) {
                 $user->api_usage_limit = self::PLAN_API_LIMITS[$user->plan ?? self::PLAN_FREE];
             }
-            if (!isset($user->attributes['api_usage_current'])) {
+            if (! isset($user->attributes['api_usage_current'])) {
                 $user->api_usage_current = 0;
             }
         });
 
         static::created(function (User $user) {
-            if (!$user->profile()->exists()) {
+            if (! $user->profile()->exists()) {
                 $user->profile()->create(['user_id' => $user->id]);
             }
         });
 
-        static::addGlobalScope(new RlsScope());
+        static::addGlobalScope(new RlsScope);
     }
 
     public function profile(): HasOne
@@ -195,7 +199,7 @@ class User extends Authenticatable
 
         return Project::where(function (Builder $q) use ($projectIds) {
             $q->where('user_id', $this->id)
-              ->orWhereIn('id', $projectIds);
+                ->orWhereIn('id', $projectIds);
         });
     }
 
@@ -236,17 +240,23 @@ class User extends Authenticatable
     public function gravatarUrl(int $size = 200): string
     {
         $hash = md5(strtolower(trim($this->email)));
+
         return "https://www.gravatar.com/avatar/{$hash}?s={$size}&d=mp";
     }
 
     public function isVerified(): bool
     {
-        return !is_null($this->email_verified_at);
+        return ! is_null($this->email_verified_at);
     }
 
     public function markAsVerified(): void
     {
         $this->update(['email_verified_at' => now()]);
+    }
+
+    public function getApiLimit(): int
+    {
+        return $this->api_usage_limit;
     }
 
     public function isOnPlan(string $plan): bool
@@ -297,6 +307,16 @@ class User extends Authenticatable
     public function scopeOnPlan(Builder $query, string $plan): Builder
     {
         return $query->where('plan', $plan);
+    }
+
+    public function scopeByPlan(Builder $query, string $plan): Builder
+    {
+        return $query->where('plan', $plan);
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('deleted_at');
     }
 
     public function scopeRecentlyActive(Builder $query, int $days = 7): Builder

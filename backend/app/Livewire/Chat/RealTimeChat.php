@@ -47,7 +47,7 @@ class RealTimeChat extends Component
 
     public function loadMessages(): void
     {
-        if (!$this->conversationId) {
+        if (! $this->conversationId) {
             return;
         }
 
@@ -62,7 +62,7 @@ class RealTimeChat extends Component
     {
         $this->validate();
 
-        if (!$this->conversationId) {
+        if (! $this->conversationId) {
             $this->createConversation();
         }
 

@@ -21,12 +21,12 @@ class UploadFileRequest extends FormRequest
             'file' => [
                 'required',
                 'file',
-                'max:' . config("supabase.storage.buckets.{$bucket}.max_size", 10240),
+                'max:'.config("supabase.storage.buckets.{$bucket}.max_size", 10240),
             ],
             'bucket' => [
                 'required',
                 'string',
-                'in:' . implode(',', array_keys(config('supabase.storage.buckets', ['projects' => []]))),
+                'in:'.implode(',', array_keys(config('supabase.storage.buckets', ['projects' => []]))),
             ],
             'directory' => [
                 'nullable',

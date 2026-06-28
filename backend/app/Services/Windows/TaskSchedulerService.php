@@ -13,7 +13,7 @@ class TaskSchedulerService
         string $triggerTime = '09:00',
         array $options = []
     ): bool {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return false;
         }
 
@@ -35,6 +35,7 @@ class TaskSchedulerService
 
         ComService::powershell($ps);
         EventLogService::info("Scheduled task created: $taskName");
+
         return true;
     }
 
@@ -55,15 +56,15 @@ class TaskSchedulerService
         $escapedUser = escapeshellarg($user);
 
         $trigger = match ($triggerType) {
-            'daily' => "-Daily -At " . escapeshellarg($triggerTime),
-            'hourly' => "-Daily -At " . escapeshellarg($triggerTime) . " -RepetitionInterval (New-TimeSpan -Minutes 60)",
-            'onstart' => "-AtStartup",
-            'onlogon' => "-AtLogOn",
-            'onidle' => "-AtIdle",
+            'daily' => '-Daily -At '.escapeshellarg($triggerTime),
+            'hourly' => '-Daily -At '.escapeshellarg($triggerTime).' -RepetitionInterval (New-TimeSpan -Minutes 60)',
+            'onstart' => '-AtStartup',
+            'onlogon' => '-AtLogOn',
+            'onidle' => '-AtIdle',
             'minute' => $interval
-                ? "-Daily -At " . escapeshellarg($triggerTime) . " -RepetitionInterval (New-TimeSpan -Minutes $interval)"
-                : "-Daily -At " . escapeshellarg($triggerTime),
-            default => "-Daily -At " . escapeshellarg($triggerTime),
+                ? '-Daily -At '.escapeshellarg($triggerTime)." -RepetitionInterval (New-TimeSpan -Minutes $interval)"
+                : '-Daily -At '.escapeshellarg($triggerTime),
+            default => '-Daily -At '.escapeshellarg($triggerTime),
         };
 
         return <<<PS
@@ -78,7 +79,7 @@ PS;
 
     public static function deleteTask(string $taskName): bool
     {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return false;
         }
         $escapedName = escapeshellarg($taskName);
@@ -86,97 +87,106 @@ PS;
             "Unregister-ScheduledTask -TaskName $escapedName -Confirm:\$false 2>\$null"
         );
         EventLogService::info("Scheduled task deleted: $taskName");
+
         return true;
     }
 
     public static function enableTask(string $taskName): bool
     {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return false;
         }
         ComService::powershell(
-            'Enable-ScheduledTask -TaskName ' . escapeshellarg($taskName) . ' 2>$null'
+            'Enable-ScheduledTask -TaskName '.escapeshellarg($taskName).' 2>$null'
         );
+
         return true;
     }
 
     public static function disableTask(string $taskName): bool
     {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return false;
         }
         ComService::powershell(
-            'Disable-ScheduledTask -TaskName ' . escapeshellarg($taskName) . ' 2>$null'
+            'Disable-ScheduledTask -TaskName '.escapeshellarg($taskName).' 2>$null'
         );
+
         return true;
     }
 
     public static function startTask(string $taskName): bool
     {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return false;
         }
         ComService::powershell(
-            'Start-ScheduledTask -TaskName ' . escapeshellarg($taskName) . ' 2>$null'
+            'Start-ScheduledTask -TaskName '.escapeshellarg($taskName).' 2>$null'
         );
+
         return true;
     }
 
     public static function stopTask(string $taskName): bool
     {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return false;
         }
         ComService::powershell(
-            'Stop-ScheduledTask -TaskName ' . escapeshellarg($taskName) . ' 2>$null'
+            'Stop-ScheduledTask -TaskName '.escapeshellarg($taskName).' 2>$null'
         );
+
         return true;
     }
 
     public static function getTaskStatus(string $taskName): ?string
     {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return null;
         }
         $output = ComService::powershell(
-            '(Get-ScheduledTask -TaskName ' . escapeshellarg($taskName) . ').State 2>$null'
+            '(Get-ScheduledTask -TaskName '.escapeshellarg($taskName).').State 2>$null'
         );
+
         return trim($output) ?: null;
     }
 
     public static function listTasks(string $prefix = 'Corex'): array
     {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return [];
         }
         $output = ComService::powershell(
             "Get-ScheduledTask -TaskName '$prefix*' | "
-            . 'Select-Object TaskName,State,LastRunTime,NextRunTime | '
-            . 'ConvertTo-Json 2>$null'
+            .'Select-Object TaskName,State,LastRunTime,NextRunTime | '
+            .'ConvertTo-Json 2>$null'
         );
+
         return json_decode(trim($output), true) ?? [];
     }
 
     public static function getTaskDetails(string $taskName): ?array
     {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return null;
         }
         $output = ComService::powershell(
-            '(Get-ScheduledTask -TaskName ' . escapeshellarg($taskName) . ') | '
-            . 'Select-Object TaskName,State,Description,Author,Date,'
-            . '@{N="LastRunTime";E={$_.LastRunTime.ToString("o")}},'
-            . '@{N="NextRunTime";E={$_.NextRunTime.ToString("o")}},'
-            . '@{N="Actions";E={$_.Actions | Select-Object Id,Execute,Arguments}},'
-            . '@{N="Triggers";E={$_.Triggers | Select-Object Id,Type,Enabled,StartBoundary,Repetition}} | '
-            . 'ConvertTo-Json -Depth 3 2>$null'
+            '(Get-ScheduledTask -TaskName '.escapeshellarg($taskName).') | '
+            .'Select-Object TaskName,State,Description,Author,Date,'
+            .'@{N="LastRunTime";E={$_.LastRunTime.ToString("o")}},'
+            .'@{N="NextRunTime";E={$_.NextRunTime.ToString("o")}},'
+            .'@{N="Actions";E={$_.Actions | Select-Object Id,Execute,Arguments}},'
+            .'@{N="Triggers";E={$_.Triggers | Select-Object Id,Type,Enabled,StartBoundary,Repetition}} | '
+            .'ConvertTo-Json -Depth 3 2>$null'
         );
+
         return json_decode(trim($output), true) ?: null;
     }
 
     public static function scheduleBackup(int $hour = 2, int $minute = 0): bool
     {
-        $backupScript = base_path() . '\\artisan';
+        $backupScript = base_path().'\\artisan';
+
         return self::createTask(
             'Corex Database Backup',
             $backupScript,
@@ -192,7 +202,8 @@ PS;
 
     public static function scheduleHealthCheck(int $intervalMinutes = 5): bool
     {
-        $healthScript = base_path() . '\\artisan corex:health';
+        $healthScript = base_path().'\\artisan corex:health';
+
         return self::createTask(
             'Corex Health Check',
             $healthScript,
@@ -209,16 +220,16 @@ PS;
 
     public static function clearAllCorexTasks(): void
     {
-        if (!ComService::isWindows()) {
+        if (! ComService::isWindows()) {
             return;
         }
 
         $tasks = self::listTasks('Corex');
-        if (!empty($tasks) && isset($tasks[0])) {
+        if (! empty($tasks) && isset($tasks[0])) {
             foreach ($tasks as $task) {
                 self::deleteTask($task['TaskName']);
             }
-        } elseif (!empty($tasks)) {
+        } elseif (! empty($tasks)) {
             self::deleteTask($tasks['TaskName']);
         }
     }

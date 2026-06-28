@@ -68,7 +68,7 @@ trait HasEncryptedAttributes
     {
         $value = parent::getAttributeValue($key);
 
-        if (!is_string($value) || !$this->isEncrypted($key)) {
+        if (! is_string($value) || ! $this->isEncrypted($key)) {
             return $value;
         }
 

@@ -12,7 +12,6 @@ use App\Http\Resources\UserResource;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 
 class AuthController extends Controller
@@ -51,10 +50,11 @@ class AuthController extends Controller
 
     public function login(LoginRequest $request): JsonResponse
     {
-        $key = 'login:' . $request->ip();
+        $key = 'login:'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $seconds = RateLimiter::availableIn($key);
+
             return $this->error(
                 "Too many login attempts. Try again in {$seconds} seconds.",
                 429,
@@ -67,8 +67,9 @@ class AuthController extends Controller
                 $request->password,
             );
 
-            if (!$user) {
+            if (! $user) {
                 RateLimiter::hit($key, 60);
+
                 return $this->error('Invalid email or password.', 401);
             }
 
@@ -97,7 +98,7 @@ class AuthController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user) {
+            if (! $user) {
                 return $this->unauthenticated();
             }
 
@@ -123,7 +124,7 @@ class AuthController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user) {
+            if (! $user) {
                 return $this->unauthenticated();
             }
 
@@ -145,7 +146,7 @@ class AuthController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user) {
+            if (! $user) {
                 return $this->unauthenticated();
             }
 
@@ -168,10 +169,11 @@ class AuthController extends Controller
 
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
-        $key = 'forgot_password:' . $request->ip();
+        $key = 'forgot_password:'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($key, 3)) {
             $seconds = RateLimiter::availableIn($key);
+
             return $this->error(
                 "Too many requests. Try again in {$seconds} seconds.",
                 429,
@@ -279,7 +281,7 @@ class AuthController extends Controller
 
     public function supabaseOAuth(Request $request, string $provider): JsonResponse
     {
-        if (!$this->supabase) {
+        if (! $this->supabase) {
             return $this->error('Supabase auth not configured.', 500);
         }
 
@@ -306,14 +308,14 @@ class AuthController extends Controller
 
     public function supabaseCallback(Request $request): JsonResponse
     {
-        if (!$this->supabase) {
+        if (! $this->supabase) {
             return $this->error('Supabase auth not configured.', 500);
         }
 
         $code = $request->input('code');
         $redirectUrl = $request->input('redirect_url', config('supabase.auth.redirect_url'));
 
-        if (!$code) {
+        if (! $code) {
             return $this->error('Authorization code is required.', 400);
         }
 
@@ -322,7 +324,7 @@ class AuthController extends Controller
 
             $user = $this->supabase->verifySupabaseToken($session['access_token']);
 
-            if (!$user) {
+            if (! $user) {
                 return $this->error('Failed to resolve user from session.', 500);
             }
 
@@ -348,13 +350,13 @@ class AuthController extends Controller
 
     public function supabaseRefresh(Request $request): JsonResponse
     {
-        if (!$this->supabase) {
+        if (! $this->supabase) {
             return $this->error('Supabase auth not configured.', 500);
         }
 
         $refreshToken = $request->input('refresh_token');
 
-        if (!$refreshToken) {
+        if (! $refreshToken) {
             return $this->error('Refresh token is required.', 400);
         }
 
@@ -378,7 +380,7 @@ class AuthController extends Controller
 
     public function supabaseLogout(Request $request): JsonResponse
     {
-        if (!$this->supabase) {
+        if (! $this->supabase) {
             return $this->error('Supabase auth not configured.', 500);
         }
 

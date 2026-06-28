@@ -1,4 +1,4 @@
-# Corex Opensource Platform ( Lovable Cursor ) PR10
+# Corex Opensource Platform ( Lovable Cursor ) PR2
 
 <p align="center">
   <img src="https://img.shields.io/github/actions/workflow/status/corex-dev/corex/backend.yml?branch=main&label=Backend%20CI&style=flat-square" alt="Backend CI">

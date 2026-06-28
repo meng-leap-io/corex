@@ -15,10 +15,15 @@ class Setting extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     public const string TYPE_STRING = 'string';
+
     public const string TYPE_BOOLEAN = 'boolean';
+
     public const string TYPE_INTEGER = 'integer';
+
     public const string TYPE_FLOAT = 'float';
+
     public const string TYPE_JSON = 'json';
+
     public const string TYPE_ENCRYPTED = 'encrypted';
 
     public const array TYPES = [

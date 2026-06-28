@@ -37,7 +37,7 @@ return [
     */
     'author' => env('NATIVEPHP_AUTHOR', 'Corex.dev'),
     'company' => env('NATIVEPHP_COMPANY', 'Corex.dev'),
-    'copyright' => 'Copyright ' . date('Y') . ' Corex.dev. All rights reserved.',
+    'copyright' => 'Copyright '.date('Y').' Corex.dev. All rights reserved.',
 
     /*
     |--------------------------------------------------------------------------

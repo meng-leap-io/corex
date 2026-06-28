@@ -72,7 +72,7 @@ class ProfileTest extends TestCase
         $token = $admin->createToken('api', ['admin'])->plainTextToken;
 
         $response = $this->withToken($token)
-            ->getJson('/api/users/' . User::skip(1)->first()->id);
+            ->getJson('/api/users/'.User::skip(1)->first()->id);
 
         $response->assertStatus(200);
     }
@@ -84,7 +84,7 @@ class ProfileTest extends TestCase
         $token = $admin->createToken('api', ['admin'])->plainTextToken;
 
         $response = $this->withToken($token)
-            ->putJson('/api/users/' . $target->id, [
+            ->putJson('/api/users/'.$target->id, [
                 'name' => 'Updated Name',
             ]);
 
@@ -99,7 +99,7 @@ class ProfileTest extends TestCase
         $token = $admin->createToken('api', ['admin'])->plainTextToken;
 
         $response = $this->withToken($token)
-            ->deleteJson('/api/users/' . $target->id);
+            ->deleteJson('/api/users/'.$target->id);
 
         $response->assertStatus(200);
         $this->assertSoftDeleted($target);
@@ -112,7 +112,7 @@ class ProfileTest extends TestCase
         $token = $user->createToken('api')->plainTextToken;
 
         $response = $this->withToken($token)
-            ->deleteJson('/api/users/' . $target->id);
+            ->deleteJson('/api/users/'.$target->id);
 
         $response->assertStatus(403);
     }

@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -15,6 +14,7 @@ use Illuminate\Support\Str;
 class ProjectService
 {
     private const CACHE_TTL_PROJECTS = 900;
+
     private const CACHE_TTL_STATS = 300;
 
     public function __construct(
@@ -111,15 +111,15 @@ class ProjectService
             ->with('user:id,name,email')
             ->select('id', 'user_id', 'name', 'slug', 'language', 'framework', 'status', 'last_accessed_at', 'created_at', 'updated_at');
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->byStatus($filters['status']);
         }
 
-        if (!empty($filters['language'])) {
+        if (! empty($filters['language'])) {
             $query->byLanguage($filters['language']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->search($filters['search']);
         }
 
@@ -159,12 +159,12 @@ class ProjectService
                 $query->where('id', '!=', $excludeId);
             }
 
-            if (!$query->exists()) {
+            if (! $query->exists()) {
                 break;
             }
 
             $count++;
-            $slug = $original . '-' . $count;
+            $slug = $original.'-'.$count;
         }
 
         return $slug;
@@ -183,7 +183,7 @@ class ProjectService
 
     public function removeFile(Project $project, string $filePath): Project
     {
-        $files = array_filter($project->files ?? [], fn(array $file) => ($file['path'] ?? '') !== $filePath);
+        $files = array_filter($project->files ?? [], fn (array $file) => ($file['path'] ?? '') !== $filePath);
 
         $project->update(['files' => array_values($files)]);
         $this->cacheService->invalidateProject($project);
@@ -209,7 +209,7 @@ class ProjectService
         return DB::transaction(function () use ($project, $owner) {
             $newProject = $project->replicate(['slug', 'last_accessed_at']);
             $newProject->user_id = $owner?->id ?? $project->user_id;
-            $newProject->name = $project->name . ' (Copy)';
+            $newProject->name = $project->name.' (Copy)';
             $newProject->slug = $this->generateUniqueSlug($newProject->name);
             $newProject->status = Project::STATUS_DRAFT;
             $newProject->save();

@@ -99,7 +99,7 @@ class WebhookRouter
 
     public function handler(string $class): mixed
     {
-        if (!isset($this->handlers[$class])) {
+        if (! isset($this->handlers[$class])) {
             $this->handlers[$class] = App::make($class);
         }
 
@@ -111,6 +111,6 @@ class WebhookRouter
         $pattern = preg_quote($pattern, '#');
         $pattern = str_replace(['\\{id\\}', '\\{event\\}', '\\*'], ['([^/]+)', '([^/]+)', '.*?'], $pattern);
 
-        return (bool) preg_match('#^' . $pattern . '$#', $path);
+        return (bool) preg_match('#^'.$pattern.'$#', $path);
     }
 }

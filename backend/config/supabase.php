@@ -1,6 +1,15 @@
 <?php
 
 declare(strict_types=1);
+use App\Models\AiUsageLog;
+use App\Models\ApiKey;
+use App\Models\CodeGeneration;
+use App\Models\Conversation;
+use App\Models\File;
+use App\Models\Profile;
+use App\Models\Project;
+use App\Models\Subscription;
+use App\Models\User;
 
 return [
     'url' => env('SUPABASE_URL', 'https://iprhzagvffgpfihrmeqd.supabase.co'),
@@ -36,7 +45,7 @@ return [
 
     'storage' => [
         'bucket' => env('SUPABASE_STORAGE_BUCKET', 'app-files'),
-        'public_url' => env('SUPABASE_URL') . '/storage/v1/object/public',
+        'public_url' => env('SUPABASE_URL').'/storage/v1/object/public',
 
         'public_buckets' => ['avatars', 'exports'],
 
@@ -337,15 +346,15 @@ return [
         ],
 
         'model_map' => [
-            'users' => \App\Models\User::class,
-            'projects' => \App\Models\Project::class,
-            'conversations' => \App\Models\Conversation::class,
-            'profiles' => \App\Models\Profile::class,
-            'ai_usage_logs' => \App\Models\AiUsageLog::class,
-            'code_generations' => \App\Models\CodeGeneration::class,
-            'subscriptions' => \App\Models\Subscription::class,
-            'api_keys' => \App\Models\ApiKey::class,
-            'files' => \App\Models\File::class,
+            'users' => User::class,
+            'projects' => Project::class,
+            'conversations' => Conversation::class,
+            'profiles' => Profile::class,
+            'ai_usage_logs' => AiUsageLog::class,
+            'code_generations' => CodeGeneration::class,
+            'subscriptions' => Subscription::class,
+            'api_keys' => ApiKey::class,
+            'files' => File::class,
         ],
     ],
 ];

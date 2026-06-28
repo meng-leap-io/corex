@@ -1,13 +1,23 @@
 <?php
 
+use App\Providers\AnalyticsServiceProvider;
+use App\Providers\AppServiceProvider;
+use App\Providers\AuthServiceProvider;
+use App\Providers\EventServiceProvider;
+use App\Providers\RealtimeServiceProvider;
+use App\Providers\RouteServiceProvider;
+use App\Providers\SupabaseServiceProvider;
+use App\Providers\SyncServiceProvider;
+use App\Providers\WebhookServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\AuthServiceProvider::class,
-    App\Providers\RouteServiceProvider::class,
-    App\Providers\EventServiceProvider::class,
-    App\Providers\SupabaseServiceProvider::class,
-    App\Providers\RealtimeServiceProvider::class,
-    App\Providers\SyncServiceProvider::class,
-    App\Providers\WebhookServiceProvider::class,
-    App\Providers\AnalyticsServiceProvider::class,
+    AppServiceProvider::class,
+    AuthServiceProvider::class,
+    RouteServiceProvider::class,
+    EventServiceProvider::class,
+    SupabaseServiceProvider::class,
+    RealtimeServiceProvider::class,
+    SyncServiceProvider::class,
+    WebhookServiceProvider::class,
+    AnalyticsServiceProvider::class,
 ];
