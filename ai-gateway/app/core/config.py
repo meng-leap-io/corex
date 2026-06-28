@@ -165,6 +165,74 @@ class Settings(BaseSettings):
     max_daily_cost_usd: float = 100.0
     cost_alert_threshold: float = 80.0
 
+    # ── Supabase ────────────────────────────────────────────────────
+    supabase_url: str = Field(
+        default="https://iprhzagvffgpfihrmeqd.supabase.co",
+        alias="SUPABASE_URL",
+    )
+    supabase_key: str = Field(
+        default="sb_publishable_DBnWTqXK0l2LhAVtYMenXg_2JhBx",
+        alias="SUPABASE_KEY",
+    )
+    supabase_service_key: Optional[str] = Field(default=None, alias="SUPABASE_SERVICE_KEY")
+    supabase_jwt_secret: Optional[str] = Field(default=None, alias="SUPABASE_JWT_SECRET")
+
+    supabase_db_host: str = Field(
+        default="aws-0-us-east-1.pooler.supabase.com",
+        alias="SUPABASE_DB_HOST",
+    )
+    supabase_db_port: int = Field(default=6543, alias="SUPABASE_DB_PORT")
+    supabase_db_database: str = Field(default="postgres", alias="SUPABASE_DB_DATABASE")
+    supabase_db_user: str = Field(
+        default="iprhzagvffgpfihrmeqd",
+        alias="SUPABASE_DB_USER",
+    )
+    supabase_db_password: str = Field(default="", alias="SUPABASE_DB_PASSWORD")
+    supabase_db_sslmode: str = Field(default="require", alias="SUPABASE_DB_SSLMODE")
+
+    supabase_pool_min_size: int = Field(default=2, alias="SUPABASE_POOL_MIN")
+    supabase_pool_max_size: int = Field(default=10, alias="SUPABASE_POOL_MAX")
+    supabase_pool_max_queries: int = Field(default=50000, alias="SUPABASE_POOL_MAX_QUERIES")
+    supabase_pool_max_inactive_seconds: int = Field(
+        default=300, alias="SUPABASE_POOL_MAX_INACTIVE"
+    )
+    supabase_command_timeout: int = Field(default=30, alias="SUPABASE_COMMAND_TIMEOUT")
+    supabase_retry_attempts: int = Field(default=3, alias="SUPABASE_RETRY_ATTEMPTS")
+    supabase_retry_delay: float = Field(default=0.5, alias="SUPABASE_RETRY_DELAY")
+    supabase_retry_max_delay: float = Field(default=10.0, alias="SUPABASE_RETRY_MAX_DELAY")
+
+    supabase_cache_ttl_conversations: int = Field(
+        default=600, alias="SUPABASE_CACHE_TTL_CONVERSATIONS"
+    )
+    supabase_cache_ttl_preferences: int = Field(
+        default=3600, alias="SUPABASE_CACHE_TTL_PREFERENCES"
+    )
+    supabase_cache_ttl_settings: int = Field(
+        default=3600, alias="SUPABASE_CACHE_TTL_SETTINGS"
+    )
+    supabase_cache_ttl_analytics: int = Field(
+        default=300, alias="SUPABASE_CACHE_TTL_ANALYTICS"
+    )
+
+    @property
+    def supabase_db_dsn(self) -> str:
+        dsn = (
+            f"postgresql://{self.supabase_db_user}:{self.supabase_db_password}"
+            f"@{self.supabase_db_host}:{self.supabase_db_port}"
+            f"/{self.supabase_db_database}"
+        )
+        if self.supabase_db_sslmode:
+            dsn += f"?sslmode={self.supabase_db_sslmode}"
+        return dsn
+
+    @property
+    def supabase_rest_url(self) -> str:
+        return f"{self.supabase_url}/rest/v1"
+
+    @property
+    def supabase_storage_url(self) -> str:
+        return f"{self.supabase_url}/storage/v1"
+
     # ── Hostname (cross-platform) ───────────────────────────────────
     hostname: str = Field(default_factory=get_hostname)
 

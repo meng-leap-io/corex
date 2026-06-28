@@ -316,11 +316,50 @@ async def check_ollama() -> HealthCheck:
 
 
 async def check_database() -> HealthCheck | tuple:
-    return (
-        ServiceStatus.HEALTHY,
-        "Database check not configured",
-        {"driver": "none", "configured": False},
-    )
+    from app.core.supabase import supabase_pool
+
+    if not supabase_pool.is_connected():
+        return (
+            ServiceStatus.DEGRADED,
+            "Supabase pool not initialized",
+            {"driver": "asyncpg", "configured": True, "connected": False},
+        )
+
+    try:
+        start = time.time()
+        val = await supabase_pool.fetchval("SELECT 1 AS ok")
+        latency = (time.time() - start) * 1000
+
+        if val == 1:
+            stats = supabase_pool.get_stats()
+            return HealthCheck(
+                name="supabase",
+                status=ServiceStatus.HEALTHY,
+                latency_ms=latency,
+                message="Supabase PostgreSQL connected",
+                details={
+                    "driver": "asyncpg",
+                    "pool_size": stats.get("connections_acquired", 0),
+                    "queries_executed": stats.get("queries_executed", 0),
+                    "avg_query_time_ms": stats.get("avg_query_time_ms", 0),
+                },
+            )
+
+        return HealthCheck(
+            name="supabase",
+            status=ServiceStatus.UNHEALTHY,
+            latency_ms=latency,
+            message="Supabase query returned unexpected result",
+        )
+    except Exception as e:
+        latency = (time.time() - start) * 1000
+        return HealthCheck(
+            name="supabase",
+            status=ServiceStatus.UNHEALTHY,
+            latency_ms=latency,
+            message=f"Supabase check failed: {e}",
+            details={"driver": "asyncpg", "error": str(e)},
+        )
 
 
 async def check_uptime(process_start_time: float) -> HealthCheck:
