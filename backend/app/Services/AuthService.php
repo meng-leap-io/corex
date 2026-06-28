@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
+use App\Contracts\SupabaseAuthContract;
 use App\Models\User;
 use App\Notifications\PasswordResetNotification;
 use App\Notifications\VerifyEmailNotification;
@@ -15,6 +18,8 @@ class AuthService
     public function __construct(
         private readonly int $tokenExpirationDays = 7,
         private readonly int $resetTokenExpirationMinutes = 60,
+        private readonly int $rememberTokenLength = 64,
+        private readonly ?SupabaseAuthContract $supabase = null,
     ) {}
 
     public function register(array $data): User
@@ -24,6 +29,17 @@ class AuthService
             'email' => $data['email'],
             'password' => $data['password'],
         ]);
+
+        if ($this->supabase && config('supabase.auth.auto_confirm')) {
+            try {
+                $this->supabase->signUp($data['email'], $data['password']);
+            } catch (\Throwable $e) {
+                Log::warning('auth.supabase_signup_failed', [
+                    'email' => $data['email'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         Log::info('auth.user_registered', [
             'user_id' => $user->id,
@@ -54,6 +70,65 @@ class AuthService
         return $user;
     }
 
+    public function registerWithSupabase(array $data): array
+    {
+        if (!$this->supabase) {
+            throw new \RuntimeException('Supabase auth not configured.');
+        }
+
+        $result = $this->supabase->signUp(
+            $data['email'],
+            $data['password'],
+            ['data' => ['name' => $data['name'] ?? '']],
+        );
+
+        $user = User::create([
+            'supabase_id' => $result['user']['id'],
+            'name' => $data['name'] ?? explode('@', $data['email'])[0],
+            'email' => $data['email'],
+            'password' => $data['password'],
+            'email_verified_at' => config('supabase.auth.auto_confirm') ? now() : null,
+        ]);
+
+        return [
+            'user' => $user,
+            'session' => $result,
+        ];
+    }
+
+    public function loginWithSupabase(string $email, string $password): array
+    {
+        if (!$this->supabase) {
+            throw new \RuntimeException('Supabase auth not configured.');
+        }
+
+        $session = $this->supabase->signIn($email, $password);
+
+        $supabaseUser = $session['user'];
+        $user = User::where('supabase_id', $supabaseUser['id'])->first();
+
+        if (!$user) {
+            $user = User::where('email', $email)->first();
+
+            if ($user) {
+                $user->update(['supabase_id' => $supabaseUser['id']]);
+            } else {
+                $user = User::create([
+                    'supabase_id' => $supabaseUser['id'],
+                    'name' => $supabaseUser['user_metadata']['name'] ?? explode('@', $email)[0],
+                    'email' => $email,
+                    'password' => bcrypt(Str::random(32)),
+                    'email_verified_at' => $supabaseUser['email_confirmed_at'] ? now() : null,
+                ]);
+            }
+        }
+
+        return [
+            'user' => $user,
+            'session' => $session,
+        ];
+    }
+
     public function createToken(User $user, string $device = 'api'): string
     {
         $user->tokens()->where('name', $device)->delete();
@@ -63,6 +138,22 @@ class AuthService
             ['*'],
             now()->addDays($this->tokenExpirationDays),
         )->plainTextToken;
+    }
+
+    public function createRememberToken(User $user): string
+    {
+        $token = Str::random($this->rememberTokenLength);
+
+        $user->forceFill([
+            'remember_token' => hash('sha256', $token),
+        ])->save();
+
+        return $token;
+    }
+
+    public function validateRememberToken(User $user, string $token): bool
+    {
+        return $user->remember_token && hash_equals($user->remember_token, hash('sha256', $token));
     }
 
     public function refreshToken(User $user, string $device = 'api'): string
@@ -99,6 +190,11 @@ class AuthService
 
         $token->delete();
         return true;
+    }
+
+    public function revokeTokensExceptDevice(User $user, string $device): void
+    {
+        $user->tokens()->where('name', '!=', $device)->delete();
     }
 
     public function verifyEmail(User $user): void
@@ -181,5 +277,35 @@ class AuthService
         ]);
 
         return $this->createToken($user, $device);
+    }
+
+    public function findOrCreateUserFromSupabase(array $supabaseUser): User
+    {
+        $user = User::where('supabase_id', $supabaseUser['id'])->first();
+
+        if ($user) {
+            return $user;
+        }
+
+        $email = $supabaseUser['email'] ?? null;
+        if ($email) {
+            $user = User::where('email', $email)->first();
+
+            if ($user) {
+                $user->update(['supabase_id' => $supabaseUser['id']]);
+                return $user;
+            }
+        }
+
+        return User::create([
+            'supabase_id' => $supabaseUser['id'],
+            'name' => $supabaseUser['user_metadata']['name']
+                ?? $supabaseUser['email']
+                ?? 'User',
+            'email' => $email ?? 'unknown-' . $supabaseUser['id'] . '@placeholder.local',
+            'password' => bcrypt(Str::random(32)),
+            'email_verified_at' => now(),
+            'avatar' => $supabaseUser['user_metadata']['avatar_url'] ?? null,
+        ]);
     }
 }

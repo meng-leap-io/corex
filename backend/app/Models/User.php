@@ -1,10 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Models\Scopes\RlsScope;
+use App\Traits\HasEncryptedAttributes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,22 +17,33 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\HasApiTokens;
+use App\Traits\Syncable;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, HasUuids, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, HasUuids, Notifiable, SoftDeletes, Syncable;
 
-    public const PLAN_FREE = 'free';
-    public const PLAN_PRO = 'pro';
-    public const PLAN_TEAM = 'team';
+    public const string ROLE_USER = 'user';
+    public const string ROLE_ADMIN = 'admin';
+    public const string ROLE_MODERATOR = 'moderator';
 
-    public const PLANS = [
+    public const array ROLES = [
+        self::ROLE_USER,
+        self::ROLE_ADMIN,
+        self::ROLE_MODERATOR,
+    ];
+
+    public const string PLAN_FREE = 'free';
+    public const string PLAN_PRO = 'pro';
+    public const string PLAN_TEAM = 'team';
+
+    public const array PLANS = [
         self::PLAN_FREE,
         self::PLAN_PRO,
         self::PLAN_TEAM,
     ];
 
-    public const PLAN_API_LIMITS = [
+    public const array PLAN_API_LIMITS = [
         self::PLAN_FREE => 1000,
         self::PLAN_PRO => 10000,
         self::PLAN_TEAM => 50000,
@@ -38,11 +54,13 @@ class User extends Authenticatable
         'email',
         'password',
         'avatar',
+        'supabase_id',
         'github_id',
         'google_id',
         'provider',
         'provider_id',
         'plan',
+        'role',
         'plan_expires_at',
         'api_usage_limit',
         'api_usage_current',
@@ -63,6 +81,7 @@ class User extends Authenticatable
             'plan_expires_at' => 'datetime',
             'api_usage_limit' => 'integer',
             'api_usage_current' => 'integer',
+            'role' => 'string',
             'settings' => 'array',
             'preferences' => 'array',
         ];
@@ -71,6 +90,7 @@ class User extends Authenticatable
     protected static function booted(): void
     {
         static::creating(function (User $user) {
+            $user->role ??= self::ROLE_USER;
             if (!isset($user->attributes['api_usage_limit'])) {
                 $user->api_usage_limit = self::PLAN_API_LIMITS[$user->plan ?? self::PLAN_FREE];
             }
@@ -84,6 +104,8 @@ class User extends Authenticatable
                 $user->profile()->create(['user_id' => $user->id]);
             }
         });
+
+        static::addGlobalScope(new RlsScope());
     }
 
     public function profile(): HasOne
@@ -116,6 +138,26 @@ class User extends Authenticatable
         return $this->hasMany(ApiKey::class);
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    public function settings(): HasMany
+    {
+        return $this->hasMany(Setting::class);
+    }
+
+    public function files(): HasMany
+    {
+        return $this->hasMany(File::class);
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
+
     public function subscription(): HasOne
     {
         return $this->hasOne(Subscription::class)->where('status', 'active');
@@ -124,6 +166,50 @@ class User extends Authenticatable
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    public function teams(): BelongsToMany
+    {
+        return $this->belongsToMany(Team::class, 'team_user')
+            ->using(TeamUser::class)
+            ->withPivot(['role', 'permissions', 'joined_at'])
+            ->withTimestamps();
+    }
+
+    public function ownedTeams(): HasMany
+    {
+        return $this->hasMany(Team::class, 'owner_id');
+    }
+
+    public function sharedProjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_user')
+            ->using(ProjectUser::class)
+            ->withPivot(['role', 'permissions', 'joined_at'])
+            ->withTimestamps();
+    }
+
+    public function allProjects(): Builder
+    {
+        $projectIds = $this->sharedProjects()->pluck('project_user.project_id');
+
+        return Project::where(function (Builder $q) use ($projectIds) {
+            $q->where('user_id', $this->id)
+              ->orWhereIn('id', $projectIds);
+        });
+    }
+
+    public function teamProjects(): Builder
+    {
+        $teamIds = $this->teams()->pluck('teams.id');
+
+        $projectIdsFromTeams = \DB::table('project_team')
+            ->whereIn('team_id', $teamIds)
+            ->pluck('project_id');
+
+        return Project::where(function (Builder $q) use ($projectIdsFromTeams) {
+            $q->whereIn('id', $projectIdsFromTeams);
+        });
     }
 
     public function setPasswordAttribute(string $value): void
@@ -138,7 +224,8 @@ class User extends Authenticatable
 
     public function getIsAdminAttribute(): bool
     {
-        return $this->email === config('app.admin_email');
+        return $this->role === self::ROLE_ADMIN
+            || $this->email === config('app.admin_email');
     }
 
     public function getAvatarUrlAttribute(): ?string
@@ -222,5 +309,15 @@ class User extends Authenticatable
     public function scopeWithApiCapacity(Builder $query): Builder
     {
         return $query->whereColumn('api_usage_current', '<', 'api_usage_limit');
+    }
+
+    public function scopeAdmin(Builder $query): Builder
+    {
+        return $query->where('role', self::ROLE_ADMIN);
+    }
+
+    public function scopeWithoutRole(Builder $query): Builder
+    {
+        return $query->whereNull('role')->orWhere('role', self::ROLE_USER);
     }
 }
