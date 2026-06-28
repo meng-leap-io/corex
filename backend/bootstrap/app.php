@@ -10,6 +10,9 @@ use App\Http\Middleware\TrustProxies;
 use App\Http\Middleware\PreventRequestsDuringMaintenance;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\BruteForceProtection;
+use App\Http\Middleware\CheckAdminRole;
+use App\Http\Middleware\EnsureSupabaseAuth;
+use App\Http\Middleware\SetRlsContext;
 use App\Http\Middleware\ValidateUserAgent;
 use App\Http\Middleware\RequestSigning;
 
@@ -40,6 +43,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'brute_force' => BruteForceProtection::class,
             'request.sign' => RequestSigning::class,
             'nativephp' => \App\Http\Middleware\NativePHPSession::class,
+            'auth.supabase' => \App\Http\Middleware\AuthenticateWithSupabase::class,
+            'rls.context' => SetRlsContext::class,
+            'auth.supabase.jwt' => EnsureSupabaseAuth::class,
+            'admin' => CheckAdminRole::class,
         ]);
 
         $middleware->api(prepend: [
@@ -53,6 +60,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->api(append: [
             BruteForceProtection::class,
+            SetRlsContext::class,
+        ]);
+
+        $middleware->web(append: [
+            SetRlsContext::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
