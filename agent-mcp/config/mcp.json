@@ -1,0 +1,43 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "log_level": "INFO"
+  },
+  "project_paths": {
+    "backend": "../backend",
+    "frontend": "../frontend",
+    "ai_gateway": "../ai-gateway"
+  },
+  "memory": {
+    "tasks_db": "memory/tasks.db",
+    "messages_file": "memory/messages.json",
+    "agent_memory_file": "memory/agent_memory.json"
+  },
+  "agents": {
+    "architect": {
+      "name": "Architect Agent",
+      "model": "gpt-4o",
+      "role": "architecture planning and analysis"
+    },
+    "developer": {
+      "name": "Developer Agent",
+      "model": "gpt-4o",
+      "role": "code implementation"
+    },
+    "reviewer": {
+      "name": "Reviewer Agent",
+      "model": "gpt-4o",
+      "role": "code review and security"
+    },
+    "tester": {
+      "name": "Tester Agent",
+      "model": "gpt-4o",
+      "role": "testing and quality assurance"
+    }
+  },
+  "mcp": {
+    "protocol_version": "2024-11-05",
+    "capabilities": ["tools", "resources", "prompts"]
+  }
+}

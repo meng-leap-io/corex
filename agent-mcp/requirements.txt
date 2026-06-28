@@ -1,0 +1,10 @@
+fastapi>=0.110.0
+uvicorn>=0.29.0
+mcp>=1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+sqlite3
+structlog>=24.0.0
+httpx>=0.26.0
+docker>=7.0.0
+python-dotenv>=1.0.0
